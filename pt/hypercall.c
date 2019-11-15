@@ -493,6 +493,13 @@ void handle_hypercall_kafl_user_submit_mode(struct kvm_run *run, CPUState *cpu){
 	}
 }
 
+void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu){
+	if(hypercall_enabled){
+		hypercall_snd_char(KAFL_PROTO_PT_ABORT);
+	}
+	qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
+}
+
 #ifdef CONFIG_REDQUEEN
 bool handle_hypercall_kafl_hook(struct kvm_run *run, CPUState *cpu){
 	X86CPU *cpux86 = X86_CPU(cpu);
@@ -508,13 +515,6 @@ bool handle_hypercall_kafl_hook(struct kvm_run *run, CPUState *cpu){
     }
 	}
 	return false;
-}
-
-void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu){
-	if(hypercall_enabled){
-		hypercall_snd_char(KAFL_PROTO_PT_ABORT);
-	}
-	qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
 }
 
 void pt_enable_rqi(CPUState *cpu){
