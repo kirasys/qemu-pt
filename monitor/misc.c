@@ -116,6 +116,9 @@ static QemuMutex mon_fdsets_lock;
 static QLIST_HEAD(, MonFdset) mon_fdsets;
 
 static HMPCommand hmp_info_cmds[];
+#if defined(CONFIG_PROCESSOR_TRACE)
+static HMPCommand hmp_pt_cmds[];
+#endif
 
 char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
                                 int64_t cpu_index, Error **errp)
@@ -1683,11 +1686,19 @@ static HMPCommand hmp_info_cmds[] = {
     { NULL, NULL, },
 };
 
+#if defined(CONFIG_PROCESSOR_TRACE)
+static HMPCommand hmp_pt_cmds[] = {
+#include "hmp-commands-pt.h"
+    { NULL, NULL, },
+};
+#endif
+
 /* hmp_cmds and hmp_info_cmds would be sorted at runtime */
 HMPCommand hmp_cmds[] = {
 #include "hmp-commands.h"
     { NULL, NULL, },
 };
+
 
 /*
  * Set @pval to the value in the register identified by @name.
