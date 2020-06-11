@@ -2484,38 +2484,38 @@ int kvm_cpu_exec(CPUState *cpu)
             handle_hypercall_kafl_info(run, cpu);
             ret = 0;
             break;
-        case KVM_EXIT_KAFL_NEXT_PAYLOAD:                                                                                                                                     
-            handle_hypercall_kafl_next_payload(run, cpu);                                                                                                                    
-            ret = 0;                                                                                                                                                         
-            break;      
-        case KVM_EXIT_KAFL_PRINTF:                                                                                                                                     
-            handle_hypercall_kafl_printf(run, cpu);                                                                                                                    
-            ret = 0;                                                                                                                                                         
-            break;       
-        case KVM_EXIT_KAFL_PRINTK_ADDR:                                                                                                                                     
-            handle_hypercall_kafl_printk_addr(run, cpu);                                                                                                                    
-            ret = 0;                                                                                                                                                         
-            break;   
-        case KVM_EXIT_KAFL_PRINTK:                                                                                                                                     
-            handle_hypercall_kafl_printk(run, cpu);                                                                                                                    
-            ret = 0;                                                                                                                                                         
+        case KVM_EXIT_KAFL_NEXT_PAYLOAD:
+            handle_hypercall_kafl_next_payload(run, cpu);
+            ret = 0;
+            break;
+        case KVM_EXIT_KAFL_PRINTF:
+            handle_hypercall_kafl_printf(run, cpu);
+            ret = 0;
+            break;
+        case KVM_EXIT_KAFL_PRINTK_ADDR:
+            handle_hypercall_kafl_printk_addr(run, cpu);
+            ret = 0;
+            break;
+        case KVM_EXIT_KAFL_PRINTK:
+            handle_hypercall_kafl_printk(run, cpu);
+            ret = 0;
             break;
 
         /* user space only exit reasons */
         case KVM_EXIT_KAFL_USER_RANGE_ADVISE:
             handle_hypercall_kafl_user_range_advise(run, cpu);
-            ret = 0;  
+            ret = 0;
             break;
         case KVM_EXIT_KAFL_USER_SUBMIT_MODE:
             handle_hypercall_kafl_user_submit_mode(run, cpu);
-            ret = 0;  
+            ret = 0;
             break;
         case KVM_EXIT_KAFL_USER_FAST_ACQUIRE:
             if(handle_hypercall_kafl_next_payload(run, cpu)){
-                handle_hypercall_kafl_cr3(run, cpu);   
+                handle_hypercall_kafl_cr3(run, cpu);
                 handle_hypercall_kafl_acquire(run, cpu);
             }
-            ret = 0;  
+            ret = 0;
             break;
         case KVM_EXIT_KAFL_TOPA_MAIN_FULL:
             pt_handle_overflow(cpu);
@@ -2523,22 +2523,20 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_KAFL_USER_ABORT:
             handle_hypercall_kafl_user_abort(run, cpu);
-            ret = 0;  
+            ret = 0;
             break;
-
-#ifdef CONFIG_REDQUEEN                                                                                                                                                    
-        case KVM_EXIT_DEBUG:                                                                                                                                                 
-            kvm_arch_get_registers(cpu);                                                                                                                                     
-            if(!handle_hypercall_kafl_hook(run, cpu)){                                                                                                                       
-                ret = kvm_arch_handle_exit(cpu, run);                                                                                                                        
-            }                                                                                                                                                                
-            else {                                                                                                                                                           
-                ret = 0;                                                                                                                                                     
-            }                                                                                                                                                                
-            break;      
-#endif                                                                                                                                                     
-#endif     
-
+#ifdef CONFIG_REDQUEEN
+        case KVM_EXIT_DEBUG:
+            kvm_arch_get_registers(cpu);
+            if(!handle_hypercall_kafl_hook(run, cpu)){
+                ret = kvm_arch_handle_exit(cpu, run);
+            }
+            else {
+                ret = 0;
+            }
+            break;
+#endif
+#endif
         case KVM_EXIT_SYSTEM_EVENT:
             switch (run->system_event.type) {
             case KVM_SYSTEM_EVENT_SHUTDOWN:
@@ -2567,9 +2565,9 @@ int kvm_cpu_exec(CPUState *cpu)
             ret = kvm_arch_handle_exit(cpu, run);
             break;
         }
-#ifdef CONFIG_PROCESSOR_TRACE                                                                                                                                                
-            pt_post_kvm_run(cpu);                                                                                                                                            
-#endif    
+#ifdef CONFIG_PROCESSOR_TRACE
+            pt_post_kvm_run(cpu);
+#endif
     } while (ret == 0);
 
     cpu_exec_end(cpu);

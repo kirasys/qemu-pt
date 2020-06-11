@@ -408,6 +408,7 @@ struct CPUState {
     uintptr_t mem_io_pc;
 
 #ifdef CONFIG_PROCESSOR_TRACE
+#include "pt/interface.h"
     volatile int pt_cmd;
     volatile uint64_t pt_arg;
     volatile int pt_ret;
@@ -421,10 +422,10 @@ struct CPUState {
 
     uint64_t pt_features;
 
-    volatile bool pt_ip_filter_enabled[4];
-    uint64_t pt_ip_filter_a[4];
-    uint64_t pt_ip_filter_b[4];
-    void* pt_decoder_state[4];
+    volatile bool pt_ip_filter_enabled[INTEL_PT_MAX_RANGES];
+    uint64_t pt_ip_filter_a[INTEL_PT_MAX_RANGES];
+    uint64_t pt_ip_filter_b[INTEL_PT_MAX_RANGES];
+    void* pt_decoder_state[INTEL_PT_MAX_RANGES];
     uint64_t pt_c3_filter;
 
     FILE *pt_target_file;
@@ -434,7 +435,7 @@ struct CPUState {
     bool intel_pt_run_trashed;
 
 #ifdef CONFIG_REDQUEEN
-    void* redqueen_state[4];
+    void* redqueen_state[INTEL_PT_MAX_RANGES];
     bool redqueen_enable_pending;
     bool redqueen_disable_pending;
 
