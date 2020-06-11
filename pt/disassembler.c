@@ -351,7 +351,7 @@ static cofi_type opcode_analyzer(disassembler_t* self, cs_insn *ins){
 			  set_se_instruction(self->redqueen_state, ins->address);
 		  }
       if(ins->id ==X86_INS_CALL || ins->id == X86_INS_LCALL){
-		//QEMU_PT_PRINTF(REDQUEEN_PREFIX, "insert hook call %lx", ins->address);
+		  QEMU_PT_DEBUG(REDQUEEN_PREFIX, "insert hook call %lx", ins->address);
 		  set_rq_instruction(self->redqueen_state, ins->address);
       }
 	}
