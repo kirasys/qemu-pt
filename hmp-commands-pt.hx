@@ -14,7 +14,7 @@ HXCOMM DEF(command, args, callback, arg_string, help) is used to construct
 HXCOMM monitor info commands
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
-#if defined(CONFIG_PROCESSOR_TRACE) && defined(TARGET_X86_64)
+#if defined(CONFIG_PROCESSOR_TRACE)
 
 {
     .name       = "enable",
