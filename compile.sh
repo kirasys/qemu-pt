@@ -6,5 +6,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-./configure --target-list=i386-softmmu,x86_64-softmmu --enable-gtk --enable-vnc --enable-pt --enable-redqueen --disable-werror
+./configure --target-list=i386-softmmu,x86_64-softmmu \
+	--enable-gtk --enable-vnc --enable-pt --enable-redqueen \
+	--disable-werror --disable-debug-info
 make -j8
