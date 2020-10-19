@@ -111,7 +111,7 @@ void handle_hypercall_kafl_submit_kasan(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_panic(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_kasan(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_timeout(struct kvm_run *run, CPUState *cpu);
-void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu);
+void handle_hypercall_kafl_snapshot(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_info(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_printf(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_printk_addr(struct kvm_run *run, CPUState *cpu);
@@ -119,6 +119,9 @@ void handle_hypercall_kafl_printk(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_range_advise(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_submit_mode(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu);
+
+/* kirasys */
+void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu);
 
 void hprintf(char* msg);
 void enable_hprintf(void);

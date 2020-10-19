@@ -50,7 +50,7 @@
 
 #define KAFL_PROTO_CRASH			'C'
 #define KAFL_PROTO_KASAN			'K'
-#define KAFL_PROTO_TIMEOUT		't'
+#define KAFL_PROTO_TIMEOUT		    't'
 #define KAFL_PROTO_INFO				'I'
 
 #define KAFL_PROTO_PRINTF			'X'
@@ -61,6 +61,6 @@
 
 #define KAFL_PROTO_PT_ABORT				'H'
 
-
-
+/* kirasys */
+#define KAFL_PROTO_LOCK         'l'
 #endif

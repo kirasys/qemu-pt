@@ -374,6 +374,13 @@ void handle_hypercall_kafl_kasan(struct kvm_run *run, CPUState *cpu){
 }
 
 void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu){
+	synchronization_lock(cpu);
+	hypercall_snd_char(KAFL_PROTO_LOCK);
+}
+
+
+void handle_hypercall_kafl_snapshot(struct kvm_run *run, CPUState *cpu){
+	/*
 	if(create_snapshot_enabled){
 		Error *err = NULL;
 		QEMU_PT_PRINTF(CORE_PREFIX, "Creating snapshot <kafl> ...");
@@ -387,10 +394,9 @@ void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu){
 		QEMU_PT_PRINTF(CORE_PREFIX, "Done. Shutting down..");
 		qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
 	}
-	/*
+	*/
 	printf("kAFL: VM PAUSED - CREATE SNAPSHOT NOW!\n");
 	vm_stop(RUN_STATE_PAUSED);
-	*/
 }
 
 void handle_hypercall_kafl_info(struct kvm_run *run, CPUState *cpu){
@@ -434,6 +440,7 @@ void hprintf(char* msg){
 
 void handle_hypercall_kafl_printf(struct kvm_run *run, CPUState *cpu){
 	//printf("%s\n", __func__);
+	
 	if(!(hprintf_counter >= HPRINTF_LIMIT) && hprintf_enabled){
 		read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)hprintf_buffer, HPRINTF_SIZE, cpu);
 		hprintf(hprintf_buffer);

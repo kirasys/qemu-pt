@@ -2476,8 +2476,8 @@ int kvm_cpu_exec(CPUState *cpu)
             handle_hypercall_kafl_timeout(run, cpu);
             ret = 0;
             break;
-        case KVM_EXIT_KAFL_LOCK:
-            handle_hypercall_kafl_lock(run, cpu);
+        case KVM_EXIT_KAFL_SNAPSHOT:
+            handle_hypercall_kafl_snapshot(run, cpu);
             ret = 0;
             break;
         case KVM_EXIT_KAFL_INFO:
@@ -2523,6 +2523,11 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_KAFL_USER_ABORT:
             handle_hypercall_kafl_user_abort(run, cpu);
+            ret = 0;
+            break;
+        /* kirasys */
+        case KVM_EXIT_KAFL_LOCK:
+            handle_hypercall_kafl_lock(run, cpu);
             ret = 0;
             break;
 #ifdef CONFIG_REDQUEEN
