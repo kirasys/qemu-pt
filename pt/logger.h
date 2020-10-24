@@ -15,7 +15,8 @@
 	//#define SAMPLE_DECODED
 	//#define SAMPLE_DECODED_DETAILED
 	//#define SAMPLE_RAW_SINGLE
-	
+	//#define DEBUG_PACKET
+
 	#ifdef CREATE_VM_IMAGE
 		#define DECODER_MEMORY_IMAGE "/tmp/data"
 	#endif

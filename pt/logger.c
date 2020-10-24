@@ -94,8 +94,7 @@ void sample_decoded_detailed(const char *format, ...){
 	#ifdef SAMPLE_DECODED_DETAILED
 	va_list args;
 	va_start(args, format);
-	if (sample_detailed_file)
-		vfprintf(sample_detailed_file, format, args);
+	printf(format, args);
 	va_end(args);
 	#endif
 }

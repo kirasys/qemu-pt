@@ -23,6 +23,7 @@
 #define INTERFACE_PREFIX	"Iface: "
 #define REDQUEEN_PREFIX		"Redq.: "
 #define DISASM_PREFIX		"Diasm: "
+#define AGENT_PREFIX		"Agent: "
 
 #define COLOR	"\033[1;35m"
 #define ENDC	"\033[0m"
@@ -33,7 +34,7 @@
 #define QEMU_PT_PRINTF(PREFIX, format, ...) qemu_log(QEMU_PT_PREFIX PREFIX format "\n", ##__VA_ARGS__)
 #define QEMU_PT_ERROR(PREFIX, format, ...)  printf(QEMU_PT_PREFIX PREFIX format "\n", ##__VA_ARGS__)
 
-#define PT_DEBUG_DISABLE
+//#define PT_DEBUG_DISABLE
 #ifndef PT_DEBUG_DISABLE
 #define QEMU_PT_DEBUG(PREFIX, format, ...)  qemu_log_mask(LOG_KAFL, QEMU_PT_PREFIX PREFIX format "\n", ##__VA_ARGS__)
 #else

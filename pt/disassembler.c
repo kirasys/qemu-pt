@@ -533,6 +533,7 @@ static inline cofi_list* get_obj(disassembler_t* self, uint64_t entry_point){
 	cofi_list *tmp_obj;
 
 	if (out_of_bounds(self, entry_point)){
+		assert(false);
 		return NULL;
 	}
 

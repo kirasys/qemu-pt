@@ -106,7 +106,6 @@ void pt_bitmap(uint64_t addr){
 }
 
 void pt_dump(CPUState *cpu, int bytes){
-
 #ifdef SAMPLE_RAW
 	sample_raw(cpu->pt_mmap, bytes);
 #endif

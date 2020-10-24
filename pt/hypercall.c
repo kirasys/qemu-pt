@@ -294,7 +294,6 @@ void handle_hypercall_kafl_release(struct kvm_run *run, CPUState *cpu){
 
 			hypercall_snd_char(KAFL_PROTO_RELEASE);
 		} else {
-
 			synchronization_disable_pt(cpu);
 		}
 	}
@@ -442,9 +441,11 @@ void handle_hypercall_kafl_printf(struct kvm_run *run, CPUState *cpu){
 	//printf("%s\n", __func__);
 	
 	if(!(hprintf_counter >= HPRINTF_LIMIT) && hprintf_enabled){
-		read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)hprintf_buffer, HPRINTF_SIZE, cpu);
-		hprintf(hprintf_buffer);
+		//read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)hprintf_buffer, HPRINTF_SIZE, cpu);
+		//hprintf(hprintf_buffer);
 	}
+	read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)hprintf_buffer, HPRINTF_SIZE, cpu);
+	QEMU_PT_PRINTF(AGENT_PREFIX, "%s", hprintf_buffer);
 }
 
 
