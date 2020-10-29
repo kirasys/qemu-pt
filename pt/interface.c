@@ -294,6 +294,7 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 	if(s->bitmap_file)
 		kafl_guest_setup_bitmap(s, kafl_bitmap_size, errp);
 
+	/*
 	for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
 		if(s->ip_filter[i][0] && s->ip_filter[i][1]){
 			tmp0 = CONVERT_UINT64(s->ip_filter[i][0]);
@@ -307,6 +308,7 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 			}
 		}
 	}
+	*/
 
 	if(s->irq_filter){
 	}
@@ -350,6 +352,7 @@ static Property kafl_guest_properties[] = {
 	 * Since DEFINE_PROP_UINT64 is somehow broken (signed/unsigned madness),
 	 * let's use DEFINE_PROP_STRING and post-process all values via strtol...
 	 */
+	/*
 	DEFINE_PROP_STRING("ip0_a", kafl_mem_state, ip_filter[0][0]),
 	DEFINE_PROP_STRING("ip0_b", kafl_mem_state, ip_filter[0][1]),
 	DEFINE_PROP_STRING("ip1_a", kafl_mem_state, ip_filter[1][0]),
@@ -358,6 +361,7 @@ static Property kafl_guest_properties[] = {
 	DEFINE_PROP_STRING("ip2_b", kafl_mem_state, ip_filter[2][1]),
 	DEFINE_PROP_STRING("ip3_a", kafl_mem_state, ip_filter[3][0]),
 	DEFINE_PROP_STRING("ip3_b", kafl_mem_state, ip_filter[3][1]),
+	*/
 	DEFINE_PROP_BOOL("irq_filter", kafl_mem_state, irq_filter, false),
 	DEFINE_PROP_UINT64("bitmap_size", kafl_mem_state, bitmap_size, DEFAULT_KAFL_BITMAP_SIZE),
 	DEFINE_PROP_BOOL("debug_mode", kafl_mem_state, debug_mode, false),

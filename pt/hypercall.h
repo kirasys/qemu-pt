@@ -122,6 +122,7 @@ void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu);
 
 /* kirasys */
 void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu);
+void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu);
 
 void hprintf(char* msg);
 void enable_hprintf(void);

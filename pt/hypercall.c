@@ -210,7 +210,7 @@ void hypercall_commit_filter(void){
 	fin_det_filter();
 }
 
-bool setup_snapshot_once = false;
+bool filter_enabled_once = false;
 
 
 void pt_setup_program(void* ptr){
@@ -221,37 +221,47 @@ void pt_setup_payload(void* ptr){
 	payload_buffer = ptr;
 }
 
+void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu) {
+	if(hypercall_enabled){
+		uint8_t filter_id = 0;	//TODO - support multiple filter. 
+		uint64_t start = run->hypercall.args[0];
+		uint64_t end = run->hypercall.args[1];
+
+		if(!filter_enabled_once) { 
+			if (filter_id < INTEL_PT_MAX_RANGES){
+				filter_enabled[filter_id] = true;
+				filter[filter_id][0] = start;
+				filter[filter_id][1] = end;
+			}
+			filter_enabled_once = true;
+		}
+		
+		pt_reset_bitmap();
+		/* decrease RIP value by vmcall instruction size */
+		X86CPU *x86_cpu = X86_CPU(cpu);
+		CPUX86State *env = &x86_cpu->env;
+		kvm_cpu_synchronize_state(cpu);
+		//env->eip -= 3; /* vmcall size */
+		kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+
+		if(filter_enabled[filter_id]){
+			#ifdef CONFIG_REDQUEEN
+				pt_enable_ip_filtering(cpu, filter_id, filter[filter_id][0], filter[filter_id][1], true, false);
+			#else					
+				pt_enable_ip_filtering(cpu, filter_id, filter[filter_id][0], filter[filter_id][1], false);
+			#endif
+		}
+	}
+}
+
 bool handle_hypercall_kafl_next_payload(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled){
 		if (init_state){
 			synchronization_lock(cpu);
 		} else {
-			if(!setup_snapshot_once){  //TODO???
-				pt_reset_bitmap();
-				/* decrease RIP value by vmcall instruction size */
-				X86CPU *x86_cpu = X86_CPU(cpu);
-				CPUX86State *env = &x86_cpu->env;
-				kvm_cpu_synchronize_state(cpu);
-				env->eip -= 3; /* vmcall size */
-				kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
-
-				setup_snapshot_once = true;
-				for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-					//printf("=> %d\n", i);
-					if(filter_enabled[i]){
-	#ifdef CONFIG_REDQUEEN
-						pt_enable_ip_filtering(cpu, i, filter[i][0], filter[i][1], true, false);
-	#else					
-						pt_enable_ip_filtering(cpu, i, filter[i][0], filter[i][1], false);
-	#endif			
-					}
-				}
-			}
-			else{
-				synchronization_lock(cpu);
-				write_virtual_memory((uint64_t)payload_buffer_guest, payload_buffer, PAYLOAD_SIZE, cpu);
-				return true;
-			}
+			synchronization_lock(cpu);
+			write_virtual_memory((uint64_t)payload_buffer_guest, payload_buffer, PAYLOAD_SIZE, cpu);
+			return true;
 		}
 	}
 	return false;
@@ -444,8 +454,10 @@ void handle_hypercall_kafl_printf(struct kvm_run *run, CPUState *cpu){
 		//read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)hprintf_buffer, HPRINTF_SIZE, cpu);
 		//hprintf(hprintf_buffer);
 	}
+	#ifdef DEBUG_QEMU
 	read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)hprintf_buffer, HPRINTF_SIZE, cpu);
 	QEMU_PT_PRINTF(AGENT_PREFIX, "%s", hprintf_buffer);
+	#endif
 }
 
 
