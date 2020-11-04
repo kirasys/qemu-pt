@@ -34,6 +34,7 @@
 extern uint32_t kafl_bitmap_size;
 uint8_t* bitmap = NULL;
 uint64_t last_ip = 0ULL;
+uint64_t ip0_fillter_a = 0ULL;
 
 void pt_sync(void){
 	if(bitmap){
@@ -96,7 +97,8 @@ void pt_bitmap(uint64_t addr){
 	#ifdef SAMPLE_DECODED
 	sample_decoded(addr);
 	#endif
-	if(bitmap){		
+	if(bitmap){
+		addr -= ip0_fillter_a;
 		addr = mix_bits(addr);
 		transition_value = (addr ^ (last_ip >> 1)) & 0xffffff;
 		bitmap[transition_value & (kafl_bitmap_size-1)]++;
@@ -241,6 +243,7 @@ int pt_enable_ip_filtering(CPUState *cpu, uint8_t addrn, uint64_t ip_a, uint64_t
 		case 1:
 		case 2:
 		case 3:
+			ip0_fillter_a = ip_a; 				// for pt_bitmap
 			cpu->pt_ip_filter_a[addrn] = ip_a;
 			cpu->pt_ip_filter_b[addrn] = ip_b;
 			r += pt_cmd(cpu, KVM_VMX_PT_CONFIGURE_ADDR0+addrn, hmp_mode);
