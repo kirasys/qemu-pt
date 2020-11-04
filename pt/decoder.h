@@ -57,8 +57,8 @@ typedef struct decoder_s{
 	uint64_t max_addr;
 	void (*handler)(uint64_t);
 	uint64_t last_tip;
+	uint64_t fup_tip;
 	uint64_t last_tip_tmp;
-	bool fup_bind_pending;
 	disassembler_t* disassembler_state;
 	tnt_cache_t* tnt_cache_state;
 	decoder_state_machine_t* decoder_state;

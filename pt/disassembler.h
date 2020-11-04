@@ -89,7 +89,7 @@ disassembler_t* init_disassembler(CPUState *cpu, uint64_t min_addr, uint64_t max
 int get_capstone_mode(CPUState *cpu);
 void disassembler_flush(disassembler_t* self);
 void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip);
- __attribute__((hot)) bool trace_disassembler(disassembler_t* self, uint64_t entry_point, uint64_t limit, tnt_cache_t* tnt_cache_state);
+ __attribute__((hot)) bool trace_disassembler(disassembler_t* self, uint64_t entry_point, uint64_t limit, tnt_cache_t* tnt_cache_state, uint64_t fup_tip);
 void destroy_disassembler(disassembler_t* self);
 
 #endif

@@ -92,7 +92,6 @@ static inline uint64_t mix_bits(uint64_t v) {
 }
 
 void pt_bitmap(uint64_t addr){
-
 	uint32_t transition_value = 0;
 	#ifdef SAMPLE_DECODED
 	sample_decoded(addr);

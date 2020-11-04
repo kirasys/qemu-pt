@@ -157,7 +157,6 @@ decoder_t* pt_decoder_init(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, 
 	decoder_t* res = malloc(sizeof(decoder_t));
 	res->last_tip = 0;
 	res->last_tip_tmp = 0;
-	res->fup_bind_pending = false;
 #ifdef DECODER_LOG
 	flush_log(res);
 #endif
@@ -191,7 +190,6 @@ void pt_decoder_destroy(decoder_t* self){
 void pt_decoder_flush(decoder_t* self){
 	self->last_tip = 0;
 	self->last_tip_tmp = 0;
-	self->fup_bind_pending = false;
 #ifdef DECODER_LOG
 	flush_log(self);
 #endif
@@ -363,17 +361,14 @@ static inline void disasm(decoder_t* self){
 	should_disasm_t* res = self->decoder_state_result;
 	if(res->valid){
     	WRITE_SAMPLE_DECODED_DETAILED("\n\ndisasm(%lx,%lx)\tTNT: %ld\n", res->start, res->end, count_tnt(self->tnt_cache_state));
-  		trace_disassembler(self->disassembler_state, res->start, res->end, self->tnt_cache_state);
+  		trace_disassembler(self->disassembler_state, res->start, res->end, self->tnt_cache_state, self->fup_tip);
+		if(unlikely(self->fup_tip))
+			self->fup_tip = 0;
+		
 	}
 }
 
 static void tip_handler(decoder_t* self, uint8_t** p, uint8_t** end){
-	if(unlikely(self->fup_bind_pending)){
-		self->fup_bind_pending = false;
-		decoder_handle_fup(self->decoder_state, self->last_tip, self->decoder_state_result);
-		disasm(self);
-	}
-
 	self->last_tip = get_ip_val(p, *end, (*(*p)++ >> PT_PKT_TIP_SHIFT), &self->last_tip_tmp);
 	WRITE_SAMPLE_DECODED_DETAILED("TIP    \t%lx\n", self->last_tip);
 	decoder_handle_tip(self->decoder_state, self->last_tip, self->decoder_state_result);
@@ -384,12 +379,6 @@ static void tip_handler(decoder_t* self, uint8_t** p, uint8_t** end){
 }
 
 static void tip_pge_handler(decoder_t* self, uint8_t** p, uint8_t** end){
-	if(unlikely(self->fup_bind_pending)){
-		self->fup_bind_pending = false;
-		decoder_handle_fup(self->decoder_state, self->last_tip, self->decoder_state_result);
-		disasm(self);
-	}
-
 	self->last_tip = get_ip_val(p, *end, (*(*p)++ >> PT_PKT_TIP_SHIFT), &self->last_tip_tmp);
 	WRITE_SAMPLE_DECODED_DETAILED("PGE    \t%lx\n", self->last_tip);
 	decoder_handle_pge(self->decoder_state, self->last_tip, self->decoder_state_result);
@@ -406,17 +395,10 @@ static void tip_pge_handler(decoder_t* self, uint8_t** p, uint8_t** end){
 }
 
 static void tip_pgd_handler(decoder_t* self, uint8_t** p, uint8_t** end){
-	if(unlikely(self->fup_bind_pending)){
-		self->fup_bind_pending = false;
-		decoder_handle_fup(self->decoder_state, self->last_tip, self->decoder_state_result);
-		disasm(self);
-	}
-
 	self->last_tip = get_ip_val(p, *end, (*(*p)++ >> PT_PKT_TIP_SHIFT), &self->last_tip_tmp);
 	WRITE_SAMPLE_DECODED_DETAILED("PGD    \t%lx\n", self->last_tip);
 	decoder_handle_pgd(self->decoder_state, self->last_tip, self->decoder_state_result);
 	disasm(self);
-
 #ifdef CONFIG_REDQUEEN
 	if(self->disassembler_state->redqueen_mode){
       disassembler_flush(self->disassembler_state);
@@ -429,17 +411,13 @@ static void tip_pgd_handler(decoder_t* self, uint8_t** p, uint8_t** end){
 }
 
 static void tip_fup_handler(decoder_t* self, uint8_t** p, uint8_t** end){
-	self->last_tip = get_ip_val(p, *end, (*(*p)++ >> PT_PKT_TIP_SHIFT), &self->last_tip_tmp);
-	self->fup_bind_pending = true;
+	self->fup_tip = get_ip_val(p, *end, (*(*p)++ >> PT_PKT_TIP_SHIFT), &self->last_tip_tmp);
 #ifdef DECODER_LOG
 	self->log.tip_fup++;
 #endif
 }
 
 static inline void pip_handler(decoder_t* self, uint8_t** p){
-	if(unlikely(self->fup_bind_pending)){
-		self->fup_bind_pending = false;
-	}
 #ifdef SAMPLE_DECODED_DETAILED
 	(*p) += PT_PKT_PIP_LEN-6;
 	WRITE_SAMPLE_DECODED_DETAILED("PIP\t%llx\n", (get_val(p, 6) >> 1) << 5);
@@ -487,9 +465,6 @@ static inline void pip_handler(decoder_t* self, uint8_t** p){
 					#endif
 					break;
 				case PT_PKT_MODE_BYTE0:
-					if(unlikely(self->fup_bind_pending)){
-						self->fup_bind_pending = false;
-					}
 					p += PT_PKT_MODE_LEN;
 					WRITE_SAMPLE_DECODED_DETAILED("MODE\n");
 					#ifdef DECODER_LOG
@@ -555,9 +530,6 @@ static inline void pip_handler(decoder_t* self, uint8_t** p){
 							#endif
 							break;
 						case PT_PKT_VMCS_BYTE1:
-							if(unlikely(self->fup_bind_pending)){
-								self->fup_bind_pending = false;
-							}
 							WRITE_SAMPLE_DECODED_DETAILED("VMCS\n");
 							p += PT_PKT_VMCS_LEN;
 							#ifdef DECODER_LOG

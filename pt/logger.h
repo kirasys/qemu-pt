@@ -48,6 +48,7 @@
 #define WRITE_SAMPLE_DECODED(addr) (sample_decoded(addr))
 #endif
 
+//#define SAMPLE_DECODED_DETAILED 
 #ifdef SAMPLE_DECODED_DETAILED
 #define WRITE_SAMPLE_DECODED_DETAILED(format, ...) (sample_decoded_detailed(format, ##__VA_ARGS__))
 #else

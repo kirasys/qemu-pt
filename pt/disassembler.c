@@ -582,7 +582,7 @@ void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
 	} while (0)
 #endif
 
- __attribute__((hot)) bool trace_disassembler(disassembler_t* self, uint64_t entry_point, uint64_t limit, tnt_cache_t* tnt_cache_state){
+ __attribute__((hot)) bool trace_disassembler(disassembler_t* self, uint64_t entry_point, uint64_t limit, tnt_cache_t* tnt_cache_state, uint64_t fup_tip){
 
 	cofi_list *obj, *last_obj;
 #ifdef CONFIG_REDQUEEN
@@ -596,8 +596,8 @@ void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
 	if (!obj || !limit_check(entry_point, obj->cofi.ins_addr, limit)){
 		check_return("1");
 	}
-
-	self->handler(entry_point);
+	if (likely(entry_point != fup_tip))
+		self->handler(entry_point);
 
 	while(true){
 		

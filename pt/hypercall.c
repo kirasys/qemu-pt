@@ -226,7 +226,6 @@ void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu) {
 		uint8_t filter_id = 0;	//TODO - support multiple filter. 
 		uint64_t start = run->hypercall.args[0];
 		uint64_t end = run->hypercall.args[1];
-
 		if(!filter_enabled_once) { 
 			if (filter_id < INTEL_PT_MAX_RANGES){
 				filter_enabled[filter_id] = true;
