@@ -201,7 +201,7 @@ int pt_enable_ip_filtering(CPUState *cpu, uint8_t addrn, uint64_t ip_a, uint64_t
 		QEMU_PT_ERROR(PT_PREFIX, "Error (ip_a > ip_b) 0x%lx-0x%lx", ip_a, ip_b);
 		return -EINVAL;
 	}
-
+	
 	if(cpu->pt_ip_filter_enabled[addrn]){
 		pt_disable_ip_filtering(cpu, addrn, hmp_mode);
 	}

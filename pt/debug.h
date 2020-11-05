@@ -32,8 +32,14 @@
 /* _DEBUG is activated with -d kafl cmdline */
 /* _ERROR is printed to stdout (or logged if logging is enabled) */
 //#define DEBUG_QEMU
+#ifdef DEBUG_QEMU
 #define QEMU_PT_PRINTF(PREFIX, format, ...) qemu_log(QEMU_PT_PREFIX PREFIX format "\n", ##__VA_ARGS__)
 #define QEMU_PT_ERROR(PREFIX, format, ...)  printf(QEMU_PT_PREFIX PREFIX format "\n", ##__VA_ARGS__)
+#else
+#define QEMU_PT_PRINTF(PREFIX, format, ...) (void)0
+#define QEMU_PT_ERROR(PREFIX, format, ...)  (void)0
+#endif
+
 
 //#define PT_DEBUG_DISABLE
 #ifndef PT_DEBUG_DISABLE
