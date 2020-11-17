@@ -242,7 +242,7 @@ void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu) {
 		if (start && end) {
 			if (driver_snapshot)
 				free(driver_snapshot);
-			driver_snapshot = malloc(end-start+1); // TODO memory leak?
+			driver_snapshot = malloc(end-start+1);
 			driver_imagebase = start;
 			driver_imagesize = end-start;
 
@@ -260,7 +260,8 @@ bool handle_hypercall_kafl_next_payload(struct kvm_run *run, CPUState *cpu){
 			synchronization_lock(cpu);
 		} else {
 			synchronization_lock(cpu);
-			write_virtual_memory((uint64_t)payload_buffer_guest, payload_buffer, PAYLOAD_SIZE, cpu);
+			if (!write_virtual_memory((uint64_t)payload_buffer_guest, payload_buffer, PAYLOAD_SIZE, cpu))
+				assert(false);
 			return true;
 		}
 	}

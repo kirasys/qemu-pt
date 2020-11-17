@@ -294,22 +294,6 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 	if(s->bitmap_file)
 		kafl_guest_setup_bitmap(s, kafl_bitmap_size, errp);
 
-	/*
-	for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(s->ip_filter[i][0] && s->ip_filter[i][1]){
-			tmp0 = CONVERT_UINT64(s->ip_filter[i][0]);
-			tmp1 = CONVERT_UINT64(s->ip_filter[i][1]);
-			if (tmp0 < tmp1){
-				tmp = NULL;
-				if(s->filter_bitmap[i]){
-					tmp = kafl_guest_setup_filter_bitmap(s, s->filter_bitmap[i], (uint64_t)(tmp1-tmp0));
-				}
-				pt_setup_ip_filters(i, tmp0, tmp1, tmp, tfilter);
-			}
-		}
-	}
-	*/
-
 	if(s->irq_filter){
 	}
 

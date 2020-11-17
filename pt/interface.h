@@ -17,7 +17,7 @@
 #define DEFAULT_EDGE_FILTER_SIZE	0x1000000
 
 #define PROGRAM_SIZE				(128 << 20) /* 128MB Application Data */
-#define PAYLOAD_SIZE				(128 << 10)	/* 128KB Payload Data */
+#define PAYLOAD_SIZE				(128 << 6)	/* 8KB Payload Data */
 #define INFO_SIZE					(128 << 10)	/* 128KB Info Data */
 #define HPRINTF_SIZE				0x1000 		/* 4KB hprintf Data */
 
