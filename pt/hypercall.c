@@ -520,6 +520,8 @@ void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled){
 		hypercall_snd_char(KAFL_PROTO_PT_ABORT);
 	}
+	printf("[QEMU] Fatal error occured in the agent.exe\n");
+	printf("[QEMU] Please check driver path, device_name, etc..\n");
 	qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
 }
 
