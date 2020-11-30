@@ -2534,6 +2534,10 @@ int kvm_cpu_exec(CPUState *cpu)
             handle_hypercall_kafl_ip_filtering(run, cpu);
             ret = 0;
             break;
+        case KVM_EXIT_KAFL_MEMWRITE:
+            handle_hypercall_kafl_memwrite(run, cpu);
+            ret = 0;
+            break;
 #ifdef CONFIG_REDQUEEN
         case KVM_EXIT_DEBUG:
             kvm_arch_get_registers(cpu);

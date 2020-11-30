@@ -271,7 +271,7 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 	uint64_t tmp0, tmp1;
 	kafl_mem_state *s = KAFLMEM(dev);
 	void* tmp = NULL;
-
+	
 	void* tfilter = kafl_guest_setup_filter_bitmap(s, (char*) "/dev/shm/kafl_tfilter", DEFAULT_EDGE_FILTER_SIZE);
 
 	if(s->bitmap_size <= 0){

@@ -43,7 +43,7 @@ bool hypercall_enabled = false;
 void* payload_buffer = NULL;
 void* payload_buffer_guest = NULL;
 void* program_buffer = NULL;
-char info_buffer[INFO_SIZE];
+char buffer[INFO_SIZE];
 char hprintf_buffer[HPRINTF_SIZE];
 void* argv = NULL;
 
@@ -385,10 +385,21 @@ void handle_hypercall_kafl_kasan(struct kvm_run *run, CPUState *cpu){
 }
 
 void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu){
-	synchronization_lock(cpu);
-	hypercall_snd_char(KAFL_PROTO_LOCK);
+	if(hypercall_enabled) {
+		synchronization_lock(cpu);
+		hypercall_snd_char(KAFL_PROTO_LOCK);
+	}
 }
 
+void handle_hypercall_kafl_memwrite(struct kvm_run *run, CPUState *cpu){
+	if(hypercall_enabled) {
+		// read source data.
+		read_virtual_memory(run->hypercall.args[1], (uint8_t*)buffer, run->hypercall.args[2], cpu);
+
+		// write
+		write_virtual_memory(run->hypercall.args[0], (uint8_t*)buffer, run->hypercall.args[2], cpu);
+	}
+}
 
 void handle_hypercall_kafl_snapshot(struct kvm_run *run, CPUState *cpu){
 	/*
@@ -411,9 +422,9 @@ void handle_hypercall_kafl_snapshot(struct kvm_run *run, CPUState *cpu){
 }
 
 void handle_hypercall_kafl_info(struct kvm_run *run, CPUState *cpu){
-	read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)info_buffer, INFO_SIZE, cpu);
+	read_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)buffer, INFO_SIZE, cpu);
 	FILE* info_file_fd = fopen(INFO_FILE, "w");
-	fprintf(info_file_fd, "%s\n", info_buffer);
+	fprintf(info_file_fd, "%s\n", buffer);
 	fclose(info_file_fd);
 	if(hypercall_enabled){
 		hypercall_snd_char(KAFL_PROTO_INFO);
@@ -490,7 +501,6 @@ void handle_hypercall_kafl_user_range_advise(struct kvm_run *run, CPUState *cpu)
 		buf->size[i] = (filter[i][1]-filter[i][0]);
 		buf->enabled[i] = (uint8_t)filter_enabled[i];
 	}
-
 	write_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t *)buf, sizeof(kAFL_ranges), cpu);
 }
 
@@ -522,7 +532,7 @@ void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu){
 	}
 	printf("[QEMU] Fatal error occured in the agent.exe\n");
 	printf("[QEMU] Please check driver path, device_name, etc..\n");
-	qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
+	//qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
 }
 
 #ifdef CONFIG_REDQUEEN
