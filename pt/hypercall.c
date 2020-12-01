@@ -23,7 +23,6 @@
 #include "migration/snapshot.h"
 #include "pt.h"
 #include "pt/hypercall.h"
-#include "pt/filter.h"
 #include "pt/memory_access.h"
 #include "pt/interface.h"
 #include "pt/printk.h"
@@ -51,14 +50,6 @@ static bool init_state = true;
 
 void (*handler)(char, void*) = NULL; 
 void* s = NULL;
-
-uint64_t filter[INTEL_PT_MAX_RANGES][2];
-bool filter_enabled[INTEL_PT_MAX_RANGES] = {false, false, false, false};
-/* vertex filter */
-filter_t *det_filter[INTEL_PT_MAX_RANGES] = {NULL, NULL, NULL, NULL};
-/* edge filter */
-filter_t *det_tfilter = NULL;
-bool det_filter_enabled[INTEL_PT_MAX_RANGES] = {false, false, false, false};
 
 uint8_t* driver_snapshot;
 uint64_t driver_imagebase;
@@ -93,128 +84,6 @@ void hypercall_reset_hprintf_counter(void){
 	hprintf_counter = 0;
 }
 
-void pt_setup_ip_filters(uint8_t filter_id, uint64_t start, uint64_t end, void* filter_bitmap, void* tfilter_bitmap){
-	if (filter_id < INTEL_PT_MAX_RANGES){
-		filter_enabled[filter_id] = true;
-		filter[filter_id][0] = start;
-		filter[filter_id][1] = end;
-		if (filter_bitmap){
-			det_filter[filter_id] = new_filter(start, end, filter_bitmap);
-			//printf("det_filter enabled\n");
-			if(!det_tfilter){
-				det_tfilter = new_filter(0, DEFAULT_EDGE_FILTER_SIZE, tfilter_bitmap);
-				//printf("det_tfilter enabled\n");
-			}
-		}
-	}
-}
-
-static inline void init_det_filter(void){
-	int i;
-	for(i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if (det_filter_enabled[i]){
-			filter_init_new_exec(det_filter[i]);
-			filter_init_new_exec(det_tfilter);
-		}	
-	}
-}
-
-static inline void fin_det_filter(void){
-	//printf("%s \n", __func__);
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if (det_filter_enabled[i]){
-			filter_finalize_exec(det_filter[i]);
-			filter_finalize_exec(det_tfilter);
-		}
-	}
-}
-
-void hypercall_submit_address(uint64_t address){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(det_filter[i] && det_filter_enabled[i]){
-			//printf("%s %lx \n", __func__, address);
-			filter_add_address(det_filter[i], address);
-		}
-	}
-}
-
-void hypercall_submit_transition(uint32_t value){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(det_tfilter && det_filter_enabled[i]){
-			//printf("%s %lx \n", __func__, value);
-			filter_add_address(det_tfilter, value);
-		}
-	}
-}
-
-bool hypercall_check_tuple(uint64_t current_addr, uint64_t prev_addr){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(det_filter[i]){
-			if(filter_is_address_nondeterministic(det_filter[i], current_addr) ||  filter_is_address_nondeterministic(det_filter[i], prev_addr)){
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-bool hypercall_check_transition(uint64_t value){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(det_tfilter){
-			if(filter_is_address_nondeterministic(det_tfilter, value)){
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-
-void hypercall_check_in_range(uint64_t* addr){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if (*addr < filter[i][0]){
-			*addr = filter[i][0];
-			return;
-		}
-
-		if (*addr > filter[i][1]){
-			*addr = filter[i][1];
-			return;
-		}
-	}
-}
-
-void hypercall_enable_filter(void){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(det_filter[i] && !det_filter_enabled[i]){
-			//printf("%s (%d)\n", __func__, i);
-			det_filter_enabled[i] = true;
-			filter_init_determinism_run(det_filter[i]);
-			filter_init_determinism_run(det_tfilter);
-		}
-	}
-}
-
-void hypercall_disable_filter(void){
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(det_filter[i] && det_filter_enabled[i]){
-			//printf("%s (%d)\n", __func__, i);
-			filter_finalize_determinism_run(det_filter[i]);
-			if(!filter_count_new_addresses(det_filter[i])){
-				filter_finalize_determinism_run(det_tfilter);
-			}
-			det_filter_enabled[i] = false;
-		}
-	}
-}
-
-void hypercall_commit_filter(void){
-	fin_det_filter();
-}
-
-bool filter_enabled_once = false;
-
-
 void pt_setup_program(void* ptr){
 	program_buffer = ptr;
 }
@@ -231,6 +100,7 @@ void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu) {
 		//printf("filter %llx %llx\n", start, end);
 		
 		pt_reset_bitmap();
+		pt_reset_coverage_map();
 		
 		/*
 			#ifdef CONFIG_REDQUEEN
@@ -272,7 +142,6 @@ void handle_hypercall_kafl_acquire(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled){
 		//printf("acquire\n");
 		if (!init_state){
-			init_det_filter();
 			if (pt_enable(cpu, false) == 0){
 				cpu->pt_enabled = true;
 			}
@@ -357,6 +226,7 @@ void handle_hypercall_kafl_submit_kasan(struct kvm_run *run, CPUState *cpu){
 
 void handle_hypercall_kafl_panic(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled){
+		printf("Crashed!!");
 		if(run->hypercall.args[0]){
 			QEMU_PT_DEBUG(CORE_PREFIX, "Panic in user mode!");
 		} else{
@@ -491,17 +361,6 @@ void handle_hypercall_kafl_printk_addr(struct kvm_run *run, CPUState *cpu){
 		write_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t*)PRINTK_PAYLOAD, PRINTK_PAYLOAD_SIZE, cpu);
 		printf("Done\n");
 	}		
-}
-
-void handle_hypercall_kafl_user_range_advise(struct kvm_run *run, CPUState *cpu){
-	kAFL_ranges* buf = malloc(sizeof(kAFL_ranges));
-
-	for(int i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		buf->ip[i] = filter[i][0];
-		buf->size[i] = (filter[i][1]-filter[i][0]);
-		buf->enabled[i] = (uint8_t)filter_enabled[i];
-	}
-	write_virtual_memory((uint64_t)run->hypercall.args[0], (uint8_t *)buf, sizeof(kAFL_ranges), cpu);
 }
 
 void handle_hypercall_kafl_user_submit_mode(struct kvm_run *run, CPUState *cpu){

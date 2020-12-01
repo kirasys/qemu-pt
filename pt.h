@@ -12,7 +12,12 @@
 
 void pt_sync(void);
 void pt_reset_bitmap(void);
+void pt_reset_coverage_map(void);
 void pt_setup_bitmap(void* ptr);
+void pt_setup_coverage_map(void* ptr);
+
+void pt_turn_on_coverage_map(void);
+void pt_turn_off_coverage_map(void);
 
 int pt_enable(CPUState *cpu, bool hmp_mode);
 int pt_disable(CPUState *cpu, bool hmp_mode);

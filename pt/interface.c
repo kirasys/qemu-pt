@@ -30,7 +30,6 @@
 #include <sys/stat.h>
 #include "pt.h"
 #include "pt/hypercall.h"
-#include "pt/filter.h"
 #include "pt/interface.h"
 #include "pt/debug.h"
 #include "pt/synchronization.h"
@@ -49,6 +48,7 @@
 		OBJECT_CHECK(kafl_mem_state, (obj), TYPE_KAFLMEM)
 
 uint32_t kafl_bitmap_size = DEFAULT_KAFL_BITMAP_SIZE;
+uint32_t kafl_coverage_map_size = DEFAULT_KAFL_COVERAGE_MAP_SIZE;
 
 static void pci_kafl_guest_realize(DeviceState *dev, Error **errp);
 
@@ -63,12 +63,13 @@ typedef struct kafl_mem_state {
 	char* data_bar_fd_1;
 	char* data_bar_fd_2;
 	char* bitmap_file;
+	char* coverage_map_file;
 
-	char* filter_bitmap[4];
 	char* ip_filter[4][2];
 
 	bool irq_filter;
 	uint64_t bitmap_size;
+	uint64_t coverage_map_size;
 
 	bool debug_mode; 	/* support for hprintf */
 	bool notifier;
@@ -102,25 +103,19 @@ static void kafl_guest_receive(void *opaque, const uint8_t * buf, int size){
 			case KAFL_PROTO_RELEASE:
 				synchronization_unlock();
 				break;
+			
+			case KAFL_PROTO_COVER_ON:
+				pt_turn_on_coverage_map();
+				send_char(KAFL_PROTO_COVER_ON, s);
+				break;
+			
+			case KAFL_PROTO_COVER_OFF:
+				pt_turn_off_coverage_map();
+				break;
 
 			case KAFL_PROTO_RELOAD:
 				assert(false);
 				synchronization_reload_vm();
-				break;
-
-			/* active sampling mode */
-			case KAFL_PROTO_ENABLE_SAMPLING:	
-				hypercall_enable_filter();
-				break;
-
-			/* deactivate sampling mode */
-			case KAFL_PROTO_DISABLE_SAMPLING:
-				hypercall_disable_filter();
-				break;
-
-			/* commit sampling result */
-			case KAFL_PROTO_COMMIT_FILTER:
-				hypercall_commit_filter();
 				break;
 
 			/* finalize iteration (dump and decode PT data) in case of timeouts */
@@ -250,34 +245,37 @@ static int kafl_guest_setup_bitmap(kafl_mem_state *s, uint32_t bitmap_size, Erro
 	return 0;
 }
 
-static void* kafl_guest_setup_filter_bitmap(kafl_mem_state *s, char* filter, uint64_t size){
+static int kafl_guest_setup_coverage_map(kafl_mem_state *s, uint32_t coverage_map_size, Error **errp){
 	void * ptr;
 	int fd;
 	struct stat st;
 	
-	QEMU_PT_DEBUG(INTERFACE_PREFIX, "setup filter file: %s", filter);
-	fd = open(filter, O_CREAT|O_RDWR, S_IRWXU|S_IRWXG|S_IRWXO);
-	stat(filter, &st);
-	if (st.st_size != size){
-		assert(ftruncate(fd, size) == 0);
+	fd = open(s->coverage_map_file, O_CREAT|O_RDWR, S_IRWXU|S_IRWXG|S_IRWXO);
+	assert(ftruncate(fd, coverage_map_size) == 0);
+	stat(s->coverage_map_file, &st);
+	assert(coverage_map_size == st.st_size);
+	ptr = mmap(0, coverage_map_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	if (ptr == MAP_FAILED) {
+		error_setg_errno(errp, errno, "Failed to mmap memory");
+		return -1;
 	}
-	ptr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-	QEMU_PT_DEBUG(INTERFACE_PREFIX, "filter file size: %lx (addr: %p)", size, ptr);
-	return ptr;
-	//pt_setup_bitmap((void*)ptr);
+	pt_setup_coverage_map((void*)ptr);
+
+	return 0;
 }
 
 static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
-	uint64_t tmp0, tmp1;
 	kafl_mem_state *s = KAFLMEM(dev);
-	void* tmp = NULL;
-	
-	void* tfilter = kafl_guest_setup_filter_bitmap(s, (char*) "/dev/shm/kafl_tfilter", DEFAULT_EDGE_FILTER_SIZE);
 
 	if(s->bitmap_size <= 0){
 		s->bitmap_size = DEFAULT_KAFL_BITMAP_SIZE;
 	}
 	kafl_bitmap_size = (uint32_t)s->bitmap_size;
+
+	if(s->coverage_map_size <= 0){
+		s->coverage_map_size = DEFAULT_KAFL_COVERAGE_MAP_SIZE;
+	}
+	kafl_coverage_map_size = (uint32_t)s->coverage_map_size;
 	
 	if (s->data_bar_fd_0 != NULL)
 		kafl_guest_create_memory_bar(s, 1, PROGRAM_SIZE, s->data_bar_fd_0, errp);
@@ -293,6 +291,8 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 		qemu_chr_fe_set_handlers(&s->chr, kafl_guest_can_receive, kafl_guest_receive, kafl_guest_event, NULL, s, NULL, true);
 	if(s->bitmap_file)
 		kafl_guest_setup_bitmap(s, kafl_bitmap_size, errp);
+	if(s->coverage_map_file)
+		kafl_guest_setup_coverage_map(s, kafl_coverage_map_size, errp);
 
 	if(s->irq_filter){
 	}
@@ -328,10 +328,7 @@ static Property kafl_guest_properties[] = {
 	DEFINE_PROP_STRING("shm0", kafl_mem_state, data_bar_fd_0),
 	DEFINE_PROP_STRING("shm1", kafl_mem_state, data_bar_fd_1),
 	DEFINE_PROP_STRING("bitmap", kafl_mem_state, bitmap_file),
-	DEFINE_PROP_STRING("filter0", kafl_mem_state, filter_bitmap[0]),
-	DEFINE_PROP_STRING("filter1", kafl_mem_state, filter_bitmap[1]),
-	DEFINE_PROP_STRING("filter2", kafl_mem_state, filter_bitmap[2]),
-	DEFINE_PROP_STRING("filter3", kafl_mem_state, filter_bitmap[3]),
+	DEFINE_PROP_STRING("coverage_map", kafl_mem_state, coverage_map_file),
 	/* 
 	 * Since DEFINE_PROP_UINT64 is somehow broken (signed/unsigned madness),
 	 * let's use DEFINE_PROP_STRING and post-process all values via strtol...
@@ -348,6 +345,7 @@ static Property kafl_guest_properties[] = {
 	*/
 	DEFINE_PROP_BOOL("irq_filter", kafl_mem_state, irq_filter, false),
 	DEFINE_PROP_UINT64("bitmap_size", kafl_mem_state, bitmap_size, DEFAULT_KAFL_BITMAP_SIZE),
+	DEFINE_PROP_UINT64("coverage_map_size", kafl_mem_state, coverage_map_size, DEFAULT_KAFL_COVERAGE_MAP_SIZE),
 	DEFINE_PROP_BOOL("debug_mode", kafl_mem_state, debug_mode, false),
 	DEFINE_PROP_BOOL("crash_notifier", kafl_mem_state, notifier, true),
 	DEFINE_PROP_BOOL("reload_mode", kafl_mem_state, reload_mode, true),

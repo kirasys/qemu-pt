@@ -32,13 +32,22 @@
 #endif
 
 extern uint32_t kafl_bitmap_size;
+extern uint32_t kafl_coverage_map_size;
+
 uint8_t* bitmap = NULL;
+
+uint16_t coverage_id = 0;
+bool is_coveraged = false;
+uint16_t* coverage_map = NULL;
+
 uint64_t last_ip = 0ULL;
 uint64_t module_base_address = 0ULL;
 
 void pt_sync(void){
 	if(bitmap){
 		msync(bitmap, kafl_bitmap_size, MS_SYNC);
+		if (is_coveraged)
+			msync(coverage_map, kafl_coverage_map_size, MS_SYNC);
 	}
 }
 
@@ -76,10 +85,30 @@ void pt_setup_bitmap(void* ptr){
 	bitmap = (uint8_t*)ptr;
 }
 
+void pt_setup_coverage_map(void* ptr){
+	coverage_map = (uint16_t*)ptr;
+}
+
+void pt_turn_on_coverage_map(void) {
+	is_coveraged = true;
+}
+
+void pt_turn_off_coverage_map(void) {
+	is_coveraged = false;
+}
+
 void pt_reset_bitmap(void){
 	if(bitmap){
 		last_ip = 0ULL;
 		memset(bitmap, 0x00, kafl_bitmap_size);
+	}
+}
+
+void pt_reset_coverage_map(void){
+	if(is_coveraged && coverage_map){
+		last_ip = 0ULL;
+		coverage_id = 0;
+		memset(coverage_map, 0x00, kafl_coverage_map_size);
 	}
 }
 
@@ -99,6 +128,9 @@ void pt_bitmap(uint64_t addr){
 	#endif
 	if(bitmap){
 		addr -= module_base_address;
+		if (is_coveraged && coverage_map) {
+			coverage_map[addr % (kafl_coverage_map_size/sizeof(uint16_t))] = ++coverage_id;
+		}
 		//printf("addr: %llx\n", addr);
 		addr = mix_bits(addr);
 		transition_value = (addr ^ (last_ip >> 1)) & 0xffffff;
@@ -151,6 +183,7 @@ int pt_enable(CPUState *cpu, bool hmp_mode){
 	init_sample_decoded_detailed();
 #endif
 	pt_reset_bitmap();
+	pt_reset_coverage_map();
 	return pt_cmd(cpu, KVM_VMX_PT_ENABLE, hmp_mode);
 }
 	

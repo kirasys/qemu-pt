@@ -79,22 +79,9 @@ typedef struct{
 void pt_setup_program(void* ptr);
 void pt_setup_payload(void* ptr);
 void pt_setup_snd_handler(void (*tmp)(char, void*), void* tmp_s);
-void pt_setup_ip_filters(uint8_t filter_id, uint64_t start, uint64_t end, void* filter_bitmap, void* tfilter_bitmap);
 void pt_setup_enable_hypercalls(void);
 
 void pt_disable_wrapper(CPUState *cpu);
-
-void hypercall_submit_address(uint64_t address);
-bool hypercall_check_tuple(uint64_t current_addr, uint64_t prev_addr);
-void hypercall_check_in_range(uint64_t* addr);
-
-
-bool hypercall_check_transition(uint64_t value);
-void hypercall_submit_transition(uint32_t value);
-
-void hypercall_enable_filter(void);
-void hypercall_disable_filter(void);
-void hypercall_commit_filter(void);
 
 bool pt_hypercalls_enabled(void);
 
@@ -116,7 +103,6 @@ void handle_hypercall_kafl_info(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_printf(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_printk_addr(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_printk(struct kvm_run *run, CPUState *cpu);
-void handle_hypercall_kafl_user_range_advise(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_submit_mode(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu);
 

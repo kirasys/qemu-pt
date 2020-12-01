@@ -2502,10 +2502,6 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
 
         /* user space only exit reasons */
-        case KVM_EXIT_KAFL_USER_RANGE_ADVISE:
-            handle_hypercall_kafl_user_range_advise(run, cpu);
-            ret = 0;
-            break;
         case KVM_EXIT_KAFL_USER_SUBMIT_MODE:
             handle_hypercall_kafl_user_submit_mode(run, cpu);
             ret = 0;
