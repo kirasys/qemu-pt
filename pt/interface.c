@@ -106,7 +106,6 @@ static void kafl_guest_receive(void *opaque, const uint8_t * buf, int size){
 			
 			case KAFL_PROTO_COVER_ON:
 				pt_turn_on_coverage_map();
-				send_char(KAFL_PROTO_COVER_ON, s);
 				break;
 			
 			case KAFL_PROTO_COVER_OFF:

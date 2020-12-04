@@ -131,7 +131,6 @@ void pt_bitmap(uint64_t addr){
 		if (is_coveraged && coverage_map) {
 			coverage_map[addr % (kafl_coverage_map_size/sizeof(uint16_t))] = ++coverage_id;
 		}
-		//printf("addr: %llx\n", addr);
 		addr = mix_bits(addr);
 		transition_value = (addr ^ (last_ip >> 1)) & 0xffffff;
 		bitmap[transition_value & (kafl_bitmap_size-1)]++;
