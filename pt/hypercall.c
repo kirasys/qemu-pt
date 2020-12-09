@@ -51,9 +51,13 @@ static bool init_state = true;
 void (*handler)(char, void*) = NULL; 
 void* s = NULL;
 
-uint8_t* driver_snapshot;
-uint64_t driver_imagebase;
-uint64_t driver_imagesize;
+typedef struct Driver_information {
+	uint8_t* image;
+	uint64_t imagebase;
+	uint64_t imagesize;
+} driver_information;
+
+driver_information driver_info = {0, 0xFFFFFFFFFFFFFFFF, 0};
 
 void pt_setup_disable_create_snapshot(void){
 	create_snapshot_enabled = false;
@@ -97,30 +101,22 @@ void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu) {
 		uint8_t filter_id = 0;	//TODO - support multiple filter. 
 		uint64_t start = run->hypercall.args[0];
 		uint64_t end = run->hypercall.args[1];
-		//printf("filter %llx %llx\n", start, end);
 		
 		pt_reset_bitmap();
 		pt_reset_coverage_map();
-		
-		/*
-			#ifdef CONFIG_REDQUEEN
-				pt_enable_ip_filtering(cpu, filter_id, start, end, true, false);
-			#else					
-				pt_enable_ip_filtering(cpu, filter_id, start, end, false);
-			#endif
-		*/
-		if (start && end) {
-			if (driver_snapshot)
-				free(driver_snapshot);
-			driver_snapshot = malloc(end-start+1);
-			driver_imagebase = start;
-			driver_imagesize = end-start;
 
-			read_virtual_memory(driver_imagebase, driver_snapshot, driver_imagesize, cpu);
+		if (start && end) {
+			if (driver_info.image)
+				free(driver_info.image);
+			driver_info.image = malloc(end - start + 1);
+			driver_info.imagebase = start;
+			driver_info.imagesize = end-start;
+
+			read_virtual_memory(driver_info.imagebase, driver_info.image, driver_info.imagesize , cpu);
 			pt_enable_ip_filtering(cpu, filter_id, start, end, false);
 			return;
 		}
-		write_virtual_memory(driver_imagebase, driver_snapshot, driver_imagesize, cpu);
+		write_virtual_memory(driver_info.imagebase, driver_info.image, driver_info.imagesize , cpu);
 	}
 }
 
