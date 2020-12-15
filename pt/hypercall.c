@@ -222,7 +222,6 @@ void handle_hypercall_kafl_submit_kasan(struct kvm_run *run, CPUState *cpu){
 
 void handle_hypercall_kafl_panic(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled){
-		printf("Crashed!!");
 		if(run->hypercall.args[0]){
 			QEMU_PT_DEBUG(CORE_PREFIX, "Panic in user mode!");
 		} else{

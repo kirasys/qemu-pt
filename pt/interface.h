@@ -17,7 +17,7 @@
 #define DEFAULT_KAFL_COVERAGE_MAP_SIZE	0x80000
 
 #define PROGRAM_SIZE				(128 << 18) /* 32MB Application Data */
-#define PAYLOAD_SIZE				0x30000 	
+#define PAYLOAD_SIZE				0x10000 	
 #define INFO_SIZE					(128 << 10)	/* 128KB Info Data */
 #define HPRINTF_SIZE				0x1000 		/* 4KB hprintf Data */
 
