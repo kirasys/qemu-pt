@@ -1741,7 +1741,7 @@ void qemu_main_loop(void)
 
 static void version(void)
 {
-    printf("QEMU-PT emulator version " QEMU_VERSION " (kAFL) (RQ)\n"
+    printf("QEMU-PT emulator version " QEMU_VERSION " (IRPT) (RQ)\n"
 
            QEMU_COPYRIGHT "\n");
 }
