@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -106,10 +105,10 @@ void handle_hypercall_kafl_printk(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_submit_mode(struct kvm_run *run, CPUState *cpu);
 void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu);
 
-/* kirasys */
-void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu);
-void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu);
-void handle_hypercall_kafl_memwrite(struct kvm_run *run, CPUState *cpu);
+/* IRPT */
+void handle_hypercall_irpt_lock(struct kvm_run *run, CPUState *cpu);
+void handle_hypercall_irpt_ip_filtering(struct kvm_run *run, CPUState *cpu);
+void handle_hypercall_irpt_memwrite(struct kvm_run *run, CPUState *cpu);
 
 void hprintf(char* msg);
 void enable_hprintf(void);
@@ -121,20 +120,4 @@ bool handle_hypercall_kafl_next_payload(struct kvm_run *run, CPUState *cpu);
 void hypercall_reset_hprintf_counter(void);
 bool hypercall_snd_char(char val);
 
-#ifdef CONFIG_REDQUEEN
-
-
-bool handle_hypercall_kafl_hook(struct kvm_run *run, CPUState *cpu);
-bool handle_hypercall_kafl_mtf(struct kvm_run *run, CPUState *cpu);
-void pt_enable_rqo(CPUState *cpu);
-void pt_disable_rqo(CPUState *cpu);
-void pt_enable_rqi(CPUState *cpu);
-void pt_disable_rqi(CPUState *cpu);
-void pt_enable_rqi_trace(CPUState *cpu);
-void pt_disable_rqi_trace(CPUState *cpu);
-void pt_set_redqueen_instrumentation_mode(CPUState *cpu, int redqueen_instruction_mode);
-void pt_set_redqueen_update_blacklist(CPUState *cpu, bool newval);
-void pt_set_enable_patches_pending(CPUState *cpu);
-void pt_set_disable_patches_pending(CPUState *cpu);
-#endif
 #endif

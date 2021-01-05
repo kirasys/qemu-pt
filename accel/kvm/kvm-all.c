@@ -2521,30 +2521,20 @@ int kvm_cpu_exec(CPUState *cpu)
             handle_hypercall_kafl_user_abort(run, cpu);
             ret = 0;
             break;
-        /* kirasys */
-        case KVM_EXIT_KAFL_LOCK:
-            handle_hypercall_kafl_lock(run, cpu);
+
+        /* IRPT */
+        case KVM_EXIT_IRPT_LOCK:
+            handle_hypercall_irpt_lock(run, cpu);
             ret = 0;
             break;
-        case KVM_EXIT_KAFL_IP_FILTER:
-            handle_hypercall_kafl_ip_filtering(run, cpu);
+        case KVM_EXIT_IRPT_IP_FILTER:
+            handle_hypercall_irpt_ip_filtering(run, cpu);
             ret = 0;
             break;
-        case KVM_EXIT_KAFL_MEMWRITE:
-            handle_hypercall_kafl_memwrite(run, cpu);
+        case KVM_EXIT_IRPT_MEMWRITE:
+            handle_hypercall_irpt_memwrite(run, cpu);
             ret = 0;
             break;
-#ifdef CONFIG_REDQUEEN
-        case KVM_EXIT_DEBUG:
-            kvm_arch_get_registers(cpu);
-            if(!handle_hypercall_kafl_hook(run, cpu)){
-                ret = kvm_arch_handle_exit(cpu, run);
-            }
-            else {
-                ret = 0;
-            }
-            break;
-#endif
 #endif
         case KVM_EXIT_SYSTEM_EVENT:
             switch (run->system_event.type) {

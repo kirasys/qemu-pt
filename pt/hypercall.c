@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -28,10 +27,6 @@
 #include "pt/printk.h"
 #include "pt/debug.h"
 #include "pt/synchronization.h"
-
-#ifdef CONFIG_REDQUEEN
-#include "pt/redqueen.h"
-#endif
 
 bool hprintf_enabled = false;
 bool notifiers_enabled = false;
@@ -96,7 +91,7 @@ void pt_setup_payload(void* ptr){
 	payload_buffer = ptr;
 }
 
-void handle_hypercall_kafl_ip_filtering(struct kvm_run *run, CPUState *cpu) {
+void handle_hypercall_irpt_ip_filtering(struct kvm_run *run, CPUState *cpu) {
 	if(hypercall_enabled){
 		uint8_t filter_id = 0;	//TODO - support multiple filter. 
 		uint64_t start = run->hypercall.args[0];
@@ -249,14 +244,14 @@ void handle_hypercall_kafl_kasan(struct kvm_run *run, CPUState *cpu){
 	}
 }
 
-void handle_hypercall_kafl_lock(struct kvm_run *run, CPUState *cpu){
+void handle_hypercall_irpt_lock(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled) {
 		synchronization_lock(cpu);
 		hypercall_snd_char(KAFL_PROTO_LOCK);
 	}
 }
 
-void handle_hypercall_kafl_memwrite(struct kvm_run *run, CPUState *cpu){
+void handle_hypercall_irpt_memwrite(struct kvm_run *run, CPUState *cpu){
 	if(hypercall_enabled) {
 		// read source data.
 		read_virtual_memory(run->hypercall.args[1], (uint8_t*)buffer, run->hypercall.args[2], cpu);
@@ -388,68 +383,3 @@ void handle_hypercall_kafl_user_abort(struct kvm_run *run, CPUState *cpu){
 	printf("[QEMU] Please check driver path, device_name, etc..\n");
 	//qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_SIGNAL);
 }
-
-#ifdef CONFIG_REDQUEEN
-bool handle_hypercall_kafl_hook(struct kvm_run *run, CPUState *cpu){
-	X86CPU *cpux86 = X86_CPU(cpu);
-    CPUX86State *env = &cpux86->env;
-
-	for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if (cpu->redqueen_state[i]){
-			if (((env->eip >= cpu->pt_ip_filter_a[i]) && (env->eip <= cpu->pt_ip_filter_b[i])) ||
-				(cpu->singlestep_enabled && ((redqueen_t*)cpu->redqueen_state[i])->singlestep_enabled)){
-				handle_hook(cpu->redqueen_state[i]);
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-void pt_enable_rqi(CPUState *cpu){
-	((uint8_t*) payload_buffer)[PAYLOAD_SIZE-1] = 1;
-	cpu->redqueen_enable_pending = true;
-}
-
-void pt_disable_rqi(CPUState *cpu){
-	cpu->redqueen_disable_pending = true;
-  cpu->redqueen_instrumentation_mode = REDQUEEN_NO_INSTRUMENTATION;
-  	((uint8_t*) payload_buffer)[PAYLOAD_SIZE-1] = 0;
-
-}
-
-void pt_set_enable_patches_pending(CPUState *cpu){
-	cpu->patches_enable_pending = true;
-}
-
-void pt_set_redqueen_instrumentation_mode(CPUState *cpu, int redqueen_mode){
-  cpu->redqueen_instrumentation_mode = redqueen_mode;
-}
-
-void pt_set_redqueen_update_blacklist(CPUState *cpu, bool newval){
-  assert(!newval || !cpu->redqueen_update_blacklist);
-  cpu->redqueen_update_blacklist = newval;
-}
-
-void pt_set_disable_patches_pending(CPUState *cpu){
-	cpu->patches_disable_pending = true;
-}
-
-void pt_enable_rqi_trace(CPUState *cpu){
-	for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if (cpu->redqueen_state[i]) {
-			redqueen_set_trace_mode((redqueen_t*)cpu->redqueen_state[i]);
-		}
-	}
-}
-
-void pt_disable_rqi_trace(CPUState *cpu){
-	for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if (cpu->redqueen_state[i] ){
-			((redqueen_t*)cpu->redqueen_state[i])->trace_mode = false;
-			return;
-		}
-	}
-}
-
-#endif

@@ -267,10 +267,10 @@ struct kvm_hyperv_exit {
 #define KVM_EXIT_KAFL_USER_ABORT		120
 #define KVM_EXIT_KAFL_TIMEOUT			121
 
-/* kirasys */
-#define KVM_EXIT_KAFL_LOCK				122
-#define KVM_EXIT_KAFL_IP_FILTER			123
-#define KVM_EXIT_KAFL_MEMWRITE			124
+/* IRPT */
+#define KVM_EXIT_IRPT_LOCK				122
+#define KVM_EXIT_IRPT_IP_FILTER			123
+#define KVM_EXIT_IRPT_MEMWRITE			124
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */

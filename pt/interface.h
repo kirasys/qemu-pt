@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -13,8 +12,8 @@
 
 #define INTEL_PT_MAX_RANGES			4
 
-#define DEFAULT_KAFL_BITMAP_SIZE	    0x10000
-#define DEFAULT_KAFL_COVERAGE_MAP_SIZE	0x80000
+#define DEFAULT_IRPT_BITMAP_SIZE	    0x10000
+#define DEFAULT_IRPT_COVERAGE_MAP_SIZE	0x80000
 
 #define PROGRAM_SIZE				(128 << 18) /* 32MB Application Data */
 #define PAYLOAD_SIZE				0x10000 	

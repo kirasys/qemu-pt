@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -26,9 +25,6 @@
 #include "pt/khash.h"
 #include "pt/tnt_cache.h"
 #include "pt/logger.h"
-#ifdef CONFIG_REDQUEEN
-#include "pt/redqueen.h"
-#endif
 
 KHASH_MAP_INIT_INT(ADDR0, uint64_t)
 
@@ -74,17 +70,9 @@ typedef struct disassembler_s{
 	bool debug;
 	bool has_pending_indirect_branch;
 	uint64_t pending_indirect_branch_src;
-#ifdef CONFIG_REDQUEEN
-	bool redqueen_mode;
-	redqueen_t* redqueen_state;
-#endif
 } disassembler_t;
 
-#ifdef CONFIG_REDQUEEN
-disassembler_t* init_disassembler(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*handler)(uint64_t), redqueen_t *redqueen_state);
-#else
 disassembler_t* init_disassembler(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*handler)(uint64_t));
-#endif
 
 int get_capstone_mode(CPUState *cpu);
 void disassembler_flush(disassembler_t* self);

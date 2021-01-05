@@ -1,6 +1,4 @@
 /*
- * This file is part of Redqueen.
- *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -149,22 +147,14 @@ static void flush_log(decoder_t* self){
 }
 #endif
 
-#ifdef CONFIG_REDQUEEN
-decoder_t* pt_decoder_init(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*pt_bitmap)(uint64_t), redqueen_t *redqueen_state){
-#else
 decoder_t* pt_decoder_init(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*pt_bitmap)(uint64_t)){
-#endif
 	decoder_t* res = malloc(sizeof(decoder_t));
 	res->last_tip = 0;
 	res->last_tip_tmp = 0;
 #ifdef DECODER_LOG
 	flush_log(res);
 #endif
-#ifdef CONFIG_REDQUEEN
-	res->disassembler_state = init_disassembler(cpu, min_addr, max_addr, pt_bitmap, redqueen_state);	
-#else
 	res->disassembler_state = init_disassembler(cpu, min_addr, max_addr, pt_bitmap);
-#endif
 	res->tnt_cache_state = tnt_cache_init();
 		/* ToDo: Free! */
 	res->decoder_state = decoder_statemachine_new();
@@ -383,12 +373,6 @@ static void tip_pge_handler(decoder_t* self, uint8_t** p, uint8_t** end){
 	WRITE_SAMPLE_DECODED_DETAILED("PGE    \t%lx\n", self->last_tip);
 	decoder_handle_pge(self->decoder_state, self->last_tip, self->decoder_state_result);
 	disasm(self);
-#ifdef CONFIG_REDQUEEN
-	if(self->disassembler_state->redqueen_mode){
-    disassembler_flush(self->disassembler_state);
-		redqueen_trace_enabled(self->disassembler_state->redqueen_state, self->last_tip);
-	}
-#endif
 #ifdef DECODER_LOG
 	self->log.tip_pge++;
 #endif
@@ -399,12 +383,6 @@ static void tip_pgd_handler(decoder_t* self, uint8_t** p, uint8_t** end){
 	WRITE_SAMPLE_DECODED_DETAILED("PGD    \t%lx\n", self->last_tip);
 	decoder_handle_pgd(self->decoder_state, self->last_tip, self->decoder_state_result);
 	disasm(self);
-#ifdef CONFIG_REDQUEEN
-	if(self->disassembler_state->redqueen_mode){
-      disassembler_flush(self->disassembler_state);
-    		redqueen_trace_disabled(self->disassembler_state->redqueen_state, self->last_tip);
-  	}
-#endif
 #ifdef DECODER_LOG
 	self->log.tip_pgd++;
 #endif

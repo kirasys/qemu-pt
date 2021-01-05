@@ -111,12 +111,8 @@ static inline void hmp_pt_disable_cpu(Monitor *mon, int cpuid){
 }
 
 static inline void hmp_pt_enable_ip_filtering_cpu(Monitor *mon, int cpuid, int addrn, uint64_t addr_a, uint64_t addr_b){
-#ifdef CONFIG_REDQUEEN
-        if(!pt_enable_ip_filtering(qemu_get_cpu(cpuid), addrn, addr_a, addr_b, false, true)){
-#else
-        if(!pt_enable_ip_filtering(qemu_get_cpu(cpuid), addrn, addr_a, addr_b, true)){    
-#endif
-        monitor_printf(mon, "CPU %d: ip filtering enabled...\n", cpuid);
+        if(!pt_enable_ip_filtering(qemu_get_cpu(cpuid), addrn, addr_a, addr_b, true)){
+            monitor_printf(mon, "CPU %d: ip filtering enabled...\n", cpuid);
         }
         else{
             monitor_printf(mon, "CPU %d: failed...\n", cpuid);

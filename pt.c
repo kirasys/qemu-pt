@@ -1,6 +1,4 @@
 /*
- * This file is part of Redqueen.
- *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -25,14 +23,9 @@
 #include "pt/memory_access.h"
 #include "pt/interface.h"
 #include "pt/debug.h"
-#ifdef CONFIG_REDQUEEN
-#include "pt/redqueen.h"
-#include "pt/redqueen_patch.h"
-#include "pt/patcher.h"
-#endif
 
-extern uint32_t kafl_bitmap_size;
-extern uint32_t kafl_coverage_map_size;
+extern uint32_t irpt_bitmap_size;
+extern uint32_t irpt_coverage_map_size;
 
 uint8_t* bitmap = NULL;
 
@@ -45,33 +38,30 @@ uint64_t module_base_address = 0ULL;
 
 void pt_sync(void){
 	if(bitmap){
-		msync(bitmap, kafl_bitmap_size, MS_SYNC);
+		msync(bitmap, irpt_bitmap_size, MS_SYNC);
 		if (is_coveraged)
-			msync(coverage_map, kafl_coverage_map_size, MS_SYNC);
+			msync(coverage_map, irpt_coverage_map_size, MS_SYNC);
 	}
 }
 
-
 static inline int pt_cmd_hmp_context(CPUState *cpu, uint64_t cmd){
-	cpu->pt_ret = -1;
-	if(pt_hypercalls_enabled()){
-		QEMU_PT_ERROR(PT_PREFIX, "Error: HMP commands are ignored if kafl tracing mode is enabled (-kafl)!");
-	}
-	else{
-		cpu->pt_cmd = cmd;
-	}
-	return cpu->pt_ret;
+       cpu->pt_ret = -1;
+       if(pt_hypercalls_enabled()){
+               QEMU_PT_ERROR(PT_PREFIX, "Error: HMP commands are ignored if kafl tracing mode is enabled (-kafl)!");
+       }
+       else{
+               cpu->pt_cmd = cmd;
+       }
+       return cpu->pt_ret;
 }
 
 static int pt_cmd(CPUState *cpu, uint64_t cmd, bool hmp_mode){
-	if (hmp_mode){
+	if (hmp_mode)
 		return pt_cmd_hmp_context(cpu, cmd);
-	}
-	else {
-		cpu->pt_cmd = cmd;
-		pt_pre_kvm_run(cpu);
-		return cpu->pt_ret;
-	}
+	
+	cpu->pt_cmd = cmd;
+	pt_pre_kvm_run(cpu);
+	return cpu->pt_ret;
 }
 
 static inline int pt_ioctl(int fd, unsigned long request, unsigned long arg){
@@ -100,7 +90,7 @@ void pt_turn_off_coverage_map(void) {
 void pt_reset_bitmap(void){
 	if(bitmap){
 		last_ip = 0ULL;
-		memset(bitmap, 0x00, kafl_bitmap_size);
+		memset(bitmap, 0x00, irpt_bitmap_size);
 	}
 }
 
@@ -108,7 +98,7 @@ void pt_reset_coverage_map(void){
 	if(is_coveraged && coverage_map){
 		last_ip = 0ULL;
 		coverage_id = 0;
-		memset(coverage_map, 0x00, kafl_coverage_map_size);
+		memset(coverage_map, 0x00, irpt_coverage_map_size);
 	}
 }
 
@@ -129,11 +119,11 @@ void pt_bitmap(uint64_t addr){
 	if(bitmap){
 		addr -= module_base_address;
 		if (is_coveraged && coverage_map) {
-			coverage_map[addr % (kafl_coverage_map_size/sizeof(uint16_t))] = ++coverage_id;
+			coverage_map[addr % (irpt_coverage_map_size/sizeof(uint16_t))] = ++coverage_id;
 		}
 		addr = mix_bits(addr);
 		transition_value = (addr ^ (last_ip >> 1)) & 0xffffff;
-		bitmap[transition_value & (kafl_bitmap_size-1)]++;
+		bitmap[transition_value & (irpt_bitmap_size-1)]++;
 	}
 	last_ip = addr; 
 }
@@ -146,11 +136,7 @@ void pt_dump(CPUState *cpu, int bytes){
 	sample_raw_single(cpu->pt_mmap, bytes);
 #endif
 	for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-		if(cpu->pt_ip_filter_enabled[i]){
-#ifdef CONFIG_REDQUEEN	
-			if(!(cpu->redqueen_state[i] && ((redqueen_t*)(cpu->redqueen_state[i]))->intercept_mode)){
-#endif
-			
+		if(cpu->pt_ip_filter_enabled[i]){			
 			if (cpu->pt_target_file){
 				fwrite(cpu->pt_mmap, sizeof(char), bytes, cpu->pt_target_file);
 			}
@@ -159,9 +145,6 @@ void pt_dump(CPUState *cpu, int bytes){
 					cpu->intel_pt_run_trashed = true;
 				}
 			}
-#ifdef CONFIG_REDQUEEN			
-			}
-#endif
 		}
 	}
 	cpu->trace_size += bytes;
@@ -215,11 +198,7 @@ int pt_set_cr3(CPUState *cpu, uint64_t val, bool hmp_mode){
 	return r;
 }
 
-#ifdef CONFIG_REDQUEEN
-int pt_enable_ip_filtering(CPUState *cpu, uint8_t addrn, uint64_t ip_a, uint64_t ip_b, bool redqueen, bool hmp_mode){
-#else
 int pt_enable_ip_filtering(CPUState *cpu, uint8_t addrn, uint64_t ip_a, uint64_t ip_b, bool hmp_mode){
-#endif
 	int r = 0;
 
 	if(addrn > 3){
@@ -255,17 +234,6 @@ int pt_enable_ip_filtering(CPUState *cpu, uint8_t addrn, uint64_t ip_a, uint64_t
 		fwrite(buf, sizeof(uint8_t), ip_b-ip_a, pt_file);
 		fclose(pt_file);
 	}
-
-#ifdef CONFIG_REDQUEEN	
-	FILE* rq_file = fopen(redqueen_workdir.target_code_dump, "wb");
-	if (!rq_file) {
-		QEMU_PT_ERROR(CORE_PREFIX, "Error writing RQ file %s)", redqueen_workdir.target_code_dump);
-	} else {
-		fwrite(&ip_a, sizeof(uint64_t), 1, rq_file);
-		fwrite(buf, sizeof(uint8_t), ip_b-ip_a, rq_file);
-		fclose(rq_file);
-	}
-#endif
 #endif
 
 
@@ -281,15 +249,8 @@ int pt_enable_ip_filtering(CPUState *cpu, uint8_t addrn, uint64_t ip_a, uint64_t
 			cpu->pt_ip_filter_b[addrn] = ip_b;
 			r += pt_cmd(cpu, KVM_VMX_PT_CONFIGURE_ADDR0+addrn, hmp_mode);
 			r += pt_cmd(cpu, KVM_VMX_PT_ENABLE_ADDR0+addrn, hmp_mode);
-			cpu->pt_ip_filter_enabled[addrn] = true;
-#ifdef CONFIG_REDQUEEN	
-			if(redqueen && !cpu->redqueen_state[addrn]){
-				cpu->redqueen_state[addrn] = new_rq_state(ip_a, ip_b, cpu);
-			}
-			cpu->pt_decoder_state[addrn] = pt_decoder_init(cpu, ip_a, ip_b, &pt_bitmap, cpu->redqueen_state[addrn]);
-#else		
+			cpu->pt_ip_filter_enabled[addrn] = true;	
 			cpu->pt_decoder_state[addrn] = pt_decoder_init(cpu, ip_a, ip_b, &pt_bitmap);
-#endif
 			break;
 		default:
 			r = -EINVAL;
@@ -307,12 +268,6 @@ int pt_disable_ip_filtering(CPUState *cpu, uint8_t addrn, bool hmp_mode){
 			r = pt_cmd(cpu, KVM_VMX_PT_DISABLE_ADDR0+addrn, hmp_mode);
 			if(cpu->pt_ip_filter_enabled[addrn]){
 				cpu->pt_ip_filter_enabled[addrn] = false;
-#ifdef CONFIG_REDQUEEN
-				if(cpu->redqueen_state[addrn]){
-					destroy_rq_state(cpu->redqueen_state[addrn]);
-					cpu->redqueen_state[addrn] = NULL;
-				}
-#endif
 				pt_decoder_destroy(cpu->pt_decoder_state[addrn]);
 			}
 			break;
@@ -336,21 +291,8 @@ void pt_kvm_init(CPUState *cpu){
 		cpu->pt_ip_filter_a[i] = 0x0;
 		cpu->pt_ip_filter_b[i] = 0x0;
 		cpu->pt_decoder_state[i] = NULL;
-#ifdef CONFIG_REDQUEEN
-		cpu->redqueen_state[i]=NULL;
-#endif
 	}
 
-#ifdef CONFIG_REDQUEEN
-	cpu->redqueen_patch_state = patcher_new(cpu);
-	cpu->redqueen_enable_pending = false;
-	cpu->redqueen_disable_pending = false;
-	cpu->redqueen_instrumentation_mode = 0;
-	cpu->redqueen_update_blacklist = false;
-
-	cpu->patches_enable_pending = false;//TODO don't enable this
-	cpu->patches_disable_pending = false;
-#endif
    	// setting the target's word with is critical to RQ operation
 	// Initialize as invalid, set by submit_CR3 or submit_mode hypercalls
 	cpu->disassembler_word_width = 0;
@@ -375,45 +317,7 @@ void pt_pre_kvm_run(CPUState *cpu){
 	pthread_mutex_lock(&pt_dump_mutex);
 	int ret;
 	struct vmx_pt_filter_iprs filter_iprs;
-#ifdef CONFIG_REDQUEEN
 
-	if(cpu->patches_disable_pending){
-		QEMU_PT_DEBUG(REDQUEEN_PREFIX, "patches disable");
-		patcher_t* patcher = qemu_get_cpu(0)->redqueen_patch_state;
-		pt_disable_patches(patcher);
-		cpu->patches_disable_pending = false;
-	}
-
-	if(cpu->patches_enable_pending){
-		QEMU_PT_DEBUG(REDQUEEN_PREFIX, "patches enable");
-		patcher_t* patcher = qemu_get_cpu(0)->redqueen_patch_state;
-		pt_enable_patches(patcher);
-		cpu->patches_enable_pending = false;
-	}
-
-
-	if(cpu->redqueen_enable_pending){
-		QEMU_PT_DEBUG(REDQUEEN_PREFIX, "rq enable");
-		for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-			if (cpu->redqueen_state[i]){
-				enable_rq_intercept_mode(cpu->redqueen_state[i]);
-			}
-		}
-		cpu->redqueen_enable_pending = false;
-		//qemu_cpu_kick_self();
-	}
-
-	if(cpu->redqueen_disable_pending){
-		QEMU_PT_DEBUG(REDQUEEN_PREFIX, "rq disable");
-		for(uint8_t i = 0; i < INTEL_PT_MAX_RANGES; i++){
-			if (cpu->redqueen_state[i]){
-				disable_rq_intercept_mode(cpu->redqueen_state[i]);
-			}
-		}
-		cpu->redqueen_disable_pending = false;
-		//qemu_cpu_kick_self();
-	}
-#endif
 	if (!cpu->pt_fd) {
 		cpu->pt_fd = kvm_vcpu_ioctl(cpu, KVM_VMX_PT_SETUP_FD, (unsigned long)0);
 		ret = ioctl(cpu->pt_fd, KVM_VMX_PT_GET_TOPA_SIZE, (unsigned long)0x0);

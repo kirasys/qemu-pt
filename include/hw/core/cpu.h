@@ -433,19 +433,6 @@ struct CPUState {
     bool executing;
     int disassembler_word_width;
     bool intel_pt_run_trashed;
-
-#ifdef CONFIG_REDQUEEN
-    void* redqueen_state[INTEL_PT_MAX_RANGES];
-    bool redqueen_enable_pending;
-    bool redqueen_disable_pending;
-
-    int redqueen_instrumentation_mode;
-    bool redqueen_update_blacklist;
-
-    bool patches_enable_pending;
-    bool patches_disable_pending;
-    void* redqueen_patch_state;
-#endif
 #endif
 
     int kvm_fd;

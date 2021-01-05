@@ -1,6 +1,5 @@
 /* 
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -21,7 +20,6 @@
 #define RELOAD_PREFIX		"Reload:"
 #define PT_PREFIX			"PT:    "
 #define INTERFACE_PREFIX	"Iface: "
-#define REDQUEEN_PREFIX		"Redq.: "
 #define DISASM_PREFIX		"Diasm: "
 #define AGENT_PREFIX		"Agent: "
 

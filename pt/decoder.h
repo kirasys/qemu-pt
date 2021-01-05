@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -25,9 +24,6 @@
 #include "pt/tnt_cache.h"
 #include "pt/disassembler.h"
 #include "pt/logger.h"
-#ifdef CONFIG_REDQUEEN
-#include "pt/redqueen.h"
-#endif
 
 //#define DECODER_LOG
 
@@ -86,11 +82,8 @@ typedef struct decoder_s{
 	} log;
 #endif
 } decoder_t;
-#ifdef CONFIG_REDQUEEN
-decoder_t* pt_decoder_init(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*handler)(uint64_t), redqueen_t *redqueen_state);
-#else
+
 decoder_t* pt_decoder_init(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*handler)(uint64_t));
-#endif
 /* returns false if the CPU trashed our tracing run */
  __attribute__((hot)) bool decode_buffer(decoder_t* self, uint8_t* map, size_t len);
 void pt_decoder_destroy(decoder_t* self);

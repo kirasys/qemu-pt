@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -37,18 +36,14 @@
 
 #include <time.h>
 
-#ifdef CONFIG_REDQUEEN
-#include "redqueen.h"
-#endif
-
 #define CONVERT_UINT64(x) (uint64_t)(strtoull(x, NULL, 16))
 
 #define TYPE_KAFLMEM "kafl"
 #define KAFLMEM(obj) \
 		OBJECT_CHECK(kafl_mem_state, (obj), TYPE_KAFLMEM)
 
-uint32_t kafl_bitmap_size = DEFAULT_KAFL_BITMAP_SIZE;
-uint32_t kafl_coverage_map_size = DEFAULT_KAFL_COVERAGE_MAP_SIZE;
+uint32_t irpt_bitmap_size = DEFAULT_IRPT_BITMAP_SIZE;
+uint32_t irpt_coverage_map_size = DEFAULT_IRPT_COVERAGE_MAP_SIZE;
 
 static void pci_kafl_guest_realize(DeviceState *dev, Error **errp);
 
@@ -57,8 +52,7 @@ typedef struct kafl_mem_state {
 
 	Chardev *kafl_chr_drv_state;
 	CharBackend chr;
-	
-	char* redqueen_workdir;
+
 	char* data_bar_fd_0;
 	char* data_bar_fd_1;
 	char* data_bar_fd_2;
@@ -76,10 +70,6 @@ typedef struct kafl_mem_state {
 	bool reload_mode;
 	bool disable_snapshot;
 	bool lazy_vAPIC_reset;
-
-#ifdef CONFIG_REDQUEEN
-	bool redqueen;
-#endif
 	
 } kafl_mem_state;
 
@@ -122,76 +112,6 @@ static void kafl_guest_receive(void *opaque, const uint8_t * buf, int size){
 				synchronization_disable_pt(qemu_get_cpu(0));
 				send_char('F', s);
 				break;
-#ifdef CONFIG_REDQUEEN
-				
-			/* enable redqueen intercept mode */
-			case KAFL_PROTO_ENABLE_RQI_MODE:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto enable rqi");
-				assert(qemu_get_cpu(0)->redqueen_instrumentation_mode != REDQUEEN_NO_INSTRUMENTATION);
-				pt_enable_rqi(qemu_get_cpu(0));
-				send_char(KAFL_PROTO_ENABLE_RQI_MODE, s);
-				break;
-
-			/* disable redqueen intercept mode */
-			case KAFL_PROTO_DISABLE_RQI_MODE:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto disable rqi");
-				pt_set_redqueen_instrumentation_mode(qemu_get_cpu(0),REDQUEEN_NO_INSTRUMENTATION);
-				pt_set_redqueen_update_blacklist(qemu_get_cpu(0), false);
-				pt_disable_rqi(qemu_get_cpu(0));
-				send_char(KAFL_PROTO_DISABLE_RQI_MODE, s);
-				break;
-
-			case KAFL_PROTO_REDQUEEN_SET_LIGHT_INSTRUMENTATION:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto set light");
-				pt_set_redqueen_instrumentation_mode(qemu_get_cpu(0),REDQUEEN_LIGHT_INSTRUMENTATION);
-				send_char(KAFL_PROTO_REDQUEEN_SET_LIGHT_INSTRUMENTATION, s);
-				break;
-
-			case KAFL_PROTO_REDQUEEN_SET_SE_INSTRUMENTATION:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto set se");
-				pt_set_redqueen_instrumentation_mode(qemu_get_cpu(0),REDQUEEN_SE_INSTRUMENTATION);
-				send_char(KAFL_PROTO_REDQUEEN_SET_SE_INSTRUMENTATION, s);
-				break;
-
-			case KAFL_PROTO_REDQUEEN_SET_WHITELIST_INSTRUMENTATION:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto set whitelist");
-				pt_set_redqueen_instrumentation_mode(qemu_get_cpu(0),REDQUEEN_WHITELIST_INSTRUMENTATION);
-				send_char(KAFL_PROTO_REDQUEEN_SET_WHITELIST_INSTRUMENTATION, s);
-				break;
-
-			case KAFL_PROTO_REDQUEEN_SET_BLACKLIST:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto set blacklist");
-				pt_set_redqueen_update_blacklist(qemu_get_cpu(0), true);
-				send_char(KAFL_PROTO_REDQUEEN_SET_BLACKLIST, s);
-				break;
-
-			/* enable symbolic execution mode */
-			case KAFL_PROTO_ENABLE_TRACE_MODE:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto enable trace");
-				pt_enable_rqi_trace(qemu_get_cpu(0));
-				send_char(KAFL_PROTO_ENABLE_TRACE_MODE, s);
-				break;
-
-			/* disable symbolic execution mode */
-			case KAFL_PROTO_DISABLE_TRACE_MODE:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto disable trace");
-				pt_disable_rqi_trace(qemu_get_cpu(0));
-				send_char(KAFL_PROTO_DISABLE_TRACE_MODE, s);
-				break;
-			/* apply patches to target */
-			case KAFL_PROTO_ENABLE_PATCHES:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto patches enable");
-				pt_set_enable_patches_pending(qemu_get_cpu(0));
-				send_char(KAFL_PROTO_ENABLE_PATCHES, s);
-				break;
-
-			/* remove all patches from the target */
-			case KAFL_PROTO_DISABLE_PATCHES:
-				QEMU_PT_DEBUG(REDQUEEN_PREFIX, "proto patches disable");
-				pt_set_disable_patches_pending(qemu_get_cpu(0));
-				send_char(KAFL_PROTO_DISABLE_PATCHES, s);
-				break;
-#endif
 		}
 	}
 }
@@ -267,31 +187,26 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 	kafl_mem_state *s = KAFLMEM(dev);
 
 	if(s->bitmap_size <= 0){
-		s->bitmap_size = DEFAULT_KAFL_BITMAP_SIZE;
+		s->bitmap_size = DEFAULT_IRPT_BITMAP_SIZE;
 	}
-	kafl_bitmap_size = (uint32_t)s->bitmap_size;
+	irpt_bitmap_size = (uint32_t)s->bitmap_size;
 
 	if(s->coverage_map_size <= 0){
-		s->coverage_map_size = DEFAULT_KAFL_COVERAGE_MAP_SIZE;
+		s->coverage_map_size = DEFAULT_IRPT_COVERAGE_MAP_SIZE;
 	}
-	kafl_coverage_map_size = (uint32_t)s->coverage_map_size;
+	irpt_coverage_map_size = (uint32_t)s->coverage_map_size;
 	
 	if (s->data_bar_fd_0 != NULL)
 		kafl_guest_create_memory_bar(s, 1, PROGRAM_SIZE, s->data_bar_fd_0, errp);
 	if (s->data_bar_fd_1 != NULL)
 		kafl_guest_create_memory_bar(s, 2, PAYLOAD_SIZE, s->data_bar_fd_1, errp);
-#ifdef CONFIG_REDQUEEN
-	if (s->redqueen_workdir){
-		setup_redqueen_workdir(s->redqueen_workdir);
-	}
-#endif
 	
 	if(&s->chr)
 		qemu_chr_fe_set_handlers(&s->chr, kafl_guest_can_receive, kafl_guest_receive, kafl_guest_event, NULL, s, NULL, true);
 	if(s->bitmap_file)
-		kafl_guest_setup_bitmap(s, kafl_bitmap_size, errp);
+		kafl_guest_setup_bitmap(s, irpt_bitmap_size, errp);
 	if(s->coverage_map_file)
-		kafl_guest_setup_coverage_map(s, kafl_coverage_map_size, errp);
+		kafl_guest_setup_coverage_map(s, irpt_coverage_map_size, errp);
 
 	if(s->irq_filter){
 	}
@@ -323,7 +238,6 @@ static void pci_kafl_guest_realize(DeviceState *dev, Error **errp){
 
 static Property kafl_guest_properties[] = {
 	DEFINE_PROP_CHR("chardev", kafl_mem_state, chr),
-	DEFINE_PROP_STRING("redqueen_workdir", kafl_mem_state, redqueen_workdir),
 	DEFINE_PROP_STRING("shm0", kafl_mem_state, data_bar_fd_0),
 	DEFINE_PROP_STRING("shm1", kafl_mem_state, data_bar_fd_1),
 	DEFINE_PROP_STRING("bitmap", kafl_mem_state, bitmap_file),
@@ -343,8 +257,8 @@ static Property kafl_guest_properties[] = {
 	DEFINE_PROP_STRING("ip3_b", kafl_mem_state, ip_filter[3][1]),
 	*/
 	DEFINE_PROP_BOOL("irq_filter", kafl_mem_state, irq_filter, false),
-	DEFINE_PROP_UINT64("bitmap_size", kafl_mem_state, bitmap_size, DEFAULT_KAFL_BITMAP_SIZE),
-	DEFINE_PROP_UINT64("coverage_map_size", kafl_mem_state, coverage_map_size, DEFAULT_KAFL_COVERAGE_MAP_SIZE),
+	DEFINE_PROP_UINT64("bitmap_size", kafl_mem_state, bitmap_size, DEFAULT_IRPT_BITMAP_SIZE),
+	DEFINE_PROP_UINT64("coverage_map_size", kafl_mem_state, coverage_map_size, DEFAULT_IRPT_COVERAGE_MAP_SIZE),
 	DEFINE_PROP_BOOL("debug_mode", kafl_mem_state, debug_mode, false),
 	DEFINE_PROP_BOOL("crash_notifier", kafl_mem_state, notifier, true),
 	DEFINE_PROP_BOOL("reload_mode", kafl_mem_state, reload_mode, true),

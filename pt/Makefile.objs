@@ -1,2 +1,1 @@
 obj-y += decoder.o disassembler.o tnt_cache.o hypercall.o logger.o memory_access.o interface.o printk.o synchronization.o asm_decoder.o
-obj-$(CONFIG_REDQUEEN) += redqueen.o patcher.o redqueen_patch.o file_helper.o

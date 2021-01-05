@@ -1,6 +1,5 @@
 /*
- * This file is part of Redqueen.
- *
+ * *
  * Sergej Schumilo, 2019 <sergej@schumilo.de>
  * Cornelius Aschermann, 2019 <cornelius.aschermann@rub.de>
  *
@@ -12,9 +11,6 @@
 #include "pt/disassembler.h"
 #include "qemu/log.h"
 #include "pt/memory_access.h"
-#ifdef CONFIG_REDQUEEN
-#include "pt/redqueen.h"
-#endif
 
 #define LOOKUP_TABLES		5
 #define IGN_MOD_RM			0
@@ -228,122 +224,9 @@ static inline uint64_t hex_to_bin(char* str){
 	return fast_strtoull(str);
 }
 
-#ifdef CONFIG_REDQUEEN
-static bool is_interessting_lea_at(disassembler_t* self, uint64_t addr){
-  asm_operand_t op1 = {0};
-  asm_operand_t op2 = {0};
-  bool res = false;
-  if( redqueen_get_operands_at(self->redqueen_state, addr, &op1, &op2) ) {
-    assert(op1.was_present && op2.was_present);
-    assert(op2.ptr_size);
-
-    int64_t oint = (int64_t)op2.offset;
-    res = oint < 0 && (-oint) > 0xff && op2.scale == 1 && op2.base == NULL && op2.index != NULL;
-
-    if(res){
-      if(!strcmp(op2.index,"rbp") || !strcmp(op2.index,"ebp") || !strcmp(op2.index,"rip")){ 
-        QEMU_PT_PRINTF(REDQUEEN_PREFIX, "got boring index");
-        res = false;
-      } //don't instrument local stack offset computations
-    }
-    asm_decoder_clear(&op1);
-    asm_decoder_clear(&op2);
-  }
-  return res;
-}
-
-static bool is_interessting_add_at(disassembler_t* self, uint64_t addr){
-  asm_operand_t op1 = {0};
-  asm_operand_t op2 = {0};
-  bool res = false;
-  if( redqueen_get_operands_at(self->redqueen_state, addr, &op1, &op2) ) {
-    assert(op1.was_present && op2.was_present);
-
-    //offsets needs to be negative, < -0xff to ensure we only look at multi byte substractions
-    res = op2.offset > 0x7fff && (((op2.offset>>8)&0xff) != 0xff) && op2.scale == 1 && op2.base == NULL && op2.index == NULL;
-
-    if( (op1.index && strstr(op1.index,"bp")) || (op2.index && strstr(op2.index,"sp") ) ){
-      res = false;
-    } //don't instrument local stack offset computations
-    asm_decoder_clear(&op1);
-    asm_decoder_clear(&op2);
-  }
-  return res;
-}
-
-static bool is_interessting_sub_at(disassembler_t* self, uint64_t addr){
-  asm_operand_t op1 = {0};
-  asm_operand_t op2 = {0};
-  bool res = false;
-  if( redqueen_get_operands_at(self->redqueen_state, addr, &op1, &op2) ) {
-    assert(op1.was_present && op2.was_present);
-    res = false;
-    if(op2.offset > 0xff && op2.scale == 1 && op2.base == NULL && op2.index == NULL){
-      if( (op1.index && strstr(op1.index,"bp")) || (op2.index && strstr(op2.index,"sp") ) ){
-        res = false;
-      } //don't instrument local stack offset computations
-      else{
-        res = true;
-      }
-    }
-    asm_decoder_clear(&op1);
-    asm_decoder_clear(&op2);
-  }
-  return res;
-}
-
-static bool is_interessting_xor_at(disassembler_t* self, uint64_t addr){
-  asm_operand_t op1 = {0};
-  asm_operand_t op2 = {0};
-  bool res = false;
-  if( redqueen_get_operands_at(self->redqueen_state, addr, &op1, &op2) ) {
-    assert(op1.was_present && op2.was_present);
-    res = !asm_decoder_op_eql(&op1, &op2);
-  }
-  asm_decoder_clear(&op1);
-  asm_decoder_clear(&op2);
-  return res;
-}
-#endif
-
 static cofi_type opcode_analyzer(disassembler_t* self, cs_insn *ins){
 	uint8_t i, j;
 	cs_x86 details = ins->detail->x86;
-#ifdef CONFIG_REDQUEEN
-	if(self->redqueen_mode){
-		  if(ins->id == X86_INS_CMP){
-			  set_rq_instruction(self->redqueen_state, ins->address);
-      }
-		  if(ins->id == X86_INS_LEA && is_interessting_lea_at(self, ins->address)){
-		      QEMU_PT_PRINTF(REDQUEEN_PREFIX, "hooking lea %lx", ins->address);
-			    set_rq_instruction(self->redqueen_state, ins->address);
-      }
-		  if(ins->id == X86_INS_SUB && is_interessting_sub_at(self, ins->address)){
-		      QEMU_PT_PRINTF(REDQUEEN_PREFIX, "hooking sub %lx", ins->address);
-			    set_rq_instruction(self->redqueen_state, ins->address);
-      }
-		  if(ins->id == X86_INS_ADD && is_interessting_add_at(self, ins->address)){
-		      QEMU_PT_PRINTF(REDQUEEN_PREFIX, "hooking add %lx", ins->address);
-			    set_rq_instruction(self->redqueen_state, ins->address);
-      }
-		  if(ins->id == X86_INS_XOR && is_interessting_xor_at(self, ins->address)){
-		      QEMU_PT_PRINTF(REDQUEEN_PREFIX, "hooking xor %lx", ins->address);
-			    set_rq_instruction(self->redqueen_state, ins->address);
-      }
-      if( ins->id != X86_INS_LEA && (ins->id == X86_INS_RET || ins->id == X86_INS_POP || 
-          (strstr(ins->op_str,"[") && 
-          (ins->id != X86_INS_NOP)	&& 
-          !(ins->size == 2 && 
-          ins->bytes[0] == 0x00 && 
-          ins->bytes[1] == 0x00)))){ /* ignore "add	byte ptr [rax], al" [0000] */
-			  set_se_instruction(self->redqueen_state, ins->address);
-		  }
-      if(ins->id ==X86_INS_CALL || ins->id == X86_INS_LCALL){
-		  QEMU_PT_DEBUG(REDQUEEN_PREFIX, "insert hook call %lx", ins->address);
-		  set_rq_instruction(self->redqueen_state, ins->address);
-      }
-	}
-#endif
 	
 	for (i = 0; i < LOOKUP_TABLES; i++){
 		for (j = 0; j < lookup_table_sizes[i]; j++){
@@ -484,11 +367,7 @@ static cofi_list* analyse_assembly(disassembler_t* self, uint64_t base_address){
 	cs_close(&handle);
 	return first;
 }
-#ifdef CONFIG_REDQUEEN
-disassembler_t* init_disassembler(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*pt_bitmap)(uint64_t), redqueen_t *redqueen_state){
-#else
 disassembler_t* init_disassembler(CPUState *cpu, uint64_t min_addr, uint64_t max_addr, void (*pt_bitmap)(uint64_t)){
-#endif
 	disassembler_t* res = malloc(sizeof(disassembler_t));
 	res->cpu = cpu;
 	res->min_addr = min_addr;
@@ -507,15 +386,6 @@ disassembler_t* init_disassembler(CPUState *cpu, uint64_t min_addr, uint64_t max
 	res->map = kh_init(ADDR0);
 #endif
 
-#ifdef CONFIG_REDQUEEN
-	if (redqueen_state != NULL){
-		res->redqueen_mode = true;
-		res->redqueen_state = redqueen_state;
-	}
-	else{
-		res->redqueen_mode = false;
-	}
-#endif
 	return res;
 }
 
@@ -556,13 +426,7 @@ void disassembler_flush(disassembler_t* self){
 
 void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
   if(self->has_pending_indirect_branch){
-#ifdef CONFIG_REDQUEEN
-        if(self->redqueen_mode){
-						WRITE_SAMPLE_DECODED_DETAILED("** %lx -rq-> %lx \n", self->pending_indirect_branch_src, target_ip);
-            redqueen_register_transition(self->redqueen_state, self->pending_indirect_branch_src, target_ip);
-        }
-#endif
-  disassembler_flush(self);
+  	disassembler_flush(self);
   }
 }
 
@@ -585,9 +449,6 @@ void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
  __attribute__((hot)) bool trace_disassembler(disassembler_t* self, uint64_t entry_point, uint64_t limit, tnt_cache_t* tnt_cache_state, uint64_t fup_tip){
 
 	cofi_list *obj, *last_obj;
-#ifdef CONFIG_REDQUEEN
-	bool redqueen_tracing = (self->redqueen_mode && self->redqueen_state->trace_mode);
-#endif
 		
 	inform_disassembler_target_ip(self, entry_point);
 
@@ -613,13 +474,7 @@ void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
 						return false;
 
 					case TAKEN:
-						WRITE_SAMPLE_DECODED_DETAILED("(%d)\t%lx\t(Taken)\n", COFI_TYPE_CONDITIONAL_BRANCH, obj->cofi.ins_addr);			
-#ifdef CONFIG_REDQUEEN
-						if(redqueen_tracing){
-							WRITE_SAMPLE_DECODED_DETAILED("** %lx -rq-> %lx \n", obj->cofi.ins_addr, obj->cofi.target_addr);
-							redqueen_register_transition(self->redqueen_state, obj->cofi.ins_addr, obj->cofi.target_addr);
-						}
-#endif
+						WRITE_SAMPLE_DECODED_DETAILED("(%d)\t%lx\t(Taken)\n", COFI_TYPE_CONDITIONAL_BRANCH, obj->cofi.ins_addr);
 						last_obj = obj;
 						self->handler(obj->cofi.target_addr);
 						if(!obj->cofi_target_ptr){
@@ -633,12 +488,6 @@ void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
 						break;
 					case NOT_TAKEN:
 						WRITE_SAMPLE_DECODED_DETAILED("(%d)\t%lx\t(Not Taken)\n", COFI_TYPE_CONDITIONAL_BRANCH ,obj->cofi.ins_addr);
-#ifdef CONFIG_REDQUEEN
-						if(redqueen_tracing){
-							WRITE_SAMPLE_DECODED_DETAILED("** %lx -rq-> %lx \n", obj->cofi.ins_addr, obj->cofi.ins_addr + obj->cofi.ins_size);
-							redqueen_register_transition(self->redqueen_state, obj->cofi.ins_addr, obj->cofi.ins_addr + obj->cofi.ins_size);
-						}
-#endif
 
 						last_obj = obj;
 						self->handler((obj->cofi.ins_addr)+obj->cofi.ins_size);
@@ -671,23 +520,10 @@ void inform_disassembler_target_ip(disassembler_t* self, uint64_t target_ip){
 			case COFI_TYPE_INDIRECT_BRANCH:
 				self->handler(obj->cofi.ins_addr); //BROKEN, TODO move to inform_disassembler_target_ip
 				
-#ifdef CONFIG_REDQUEEN
-				if(redqueen_tracing){
-					self->has_pending_indirect_branch = true;
-					self->pending_indirect_branch_src = obj->cofi.ins_addr;
-				}
-#endif
-				
 				WRITE_SAMPLE_DECODED_DETAILED("(2)\t%lx\n",obj->cofi.ins_addr);
 				return true;
 
 			case COFI_TYPE_NEAR_RET:
-#ifdef CONFIG_REDQUEEN
-				if(redqueen_tracing){
-					self->has_pending_indirect_branch = true;
-					self->pending_indirect_branch_src = obj->cofi.ins_addr;
-				}
-#endif
 				WRITE_SAMPLE_DECODED_DETAILED("(3)\t%lx\n",obj->cofi.ins_addr);
 				return true;
 
